@@ -1,0 +1,210 @@
+{
+    "name": "johann-generated",
+    "version": "1.0.0",
+    "client": {
+        "organization": "PARMA",
+        "connection": {
+            "timeout": {
+                "peer": {
+                    "endorser": "300"
+                },
+                "orderer": "300"
+            }
+        }
+    },
+    "channels": {
+        "canal": {
+            "orderers": [
+                "orderer1-ufsc",
+                "orderer1-parma"
+            ],
+            "peers": {
+                "peer1-ufsc": {
+                    "endorsingPeer": true,
+                    "chaincodeQuery": true,
+                    "ledgerQuery": true,
+                    "eventSource": true,
+                    "discover": true
+                },
+                "peer2-ufsc": {
+                    "endorsingPeer": true,
+                    "chaincodeQuery": true,
+                    "ledgerQuery": true,
+                    "eventSource": true,
+                    "discover": true
+                },
+                "peer1-parma": {
+                    "endorsingPeer": true,
+                    "chaincodeQuery": true,
+                    "ledgerQuery": true,
+                    "eventSource": true,
+                    "discover": true
+                }
+            }
+        }
+    },
+    "organizations": {
+        "UFSC": {
+            "mspid": "UFSC",
+            "peers": [
+                "peer1-ufsc",
+                "peer2-ufsc"
+            ],
+            "certificateAuthorities": [
+                "rca-ufsc"
+            ],
+            "adminPrivateKeyPEM": {
+                "path": "/EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem"
+            },
+            "signedCertPEM": {
+                "path": "/EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem"
+            }
+        },
+        "PARMA": {
+            "mspid": "PARMA",
+            "peers": [
+                "peer1-parma"
+            ],
+            "certificateAuthorities": [
+                "rca-parma"
+            ],
+            "adminPrivateKeyPEM": {
+                "path": "/EnergyNetwork/hyperledger/parma/admin1/msp/keystore/key.pem"
+            },
+            "signedCertPEM": {
+                "path": "/EnergyNetwork/hyperledger/parma/admin1/msp/signcerts/cert.pem"
+            }
+        },
+        "IDEMIXORG": {
+            "mspid": "IDEMIXORG",
+            "peers": [],
+            "certificateAuthorities": [
+                "rca-idemixorg"
+            ],
+            "adminPrivateKeyPEM": {
+                "path": "/EnergyNetwork/hyperledger/idemixorg/admin1/msp/keystore/key.pem"
+            },
+            "signedCertPEM": {
+                "path": "/EnergyNetwork/hyperledger/idemixorg/admin1/msp/signcerts/cert.pem"
+            }
+        }
+    },
+    "orderers": {
+        "orderer1-ufsc": {
+            "url": "grpcs://orderer1-ufsc:7050",
+            "mspid": "UFSC",
+            "grpcOptions": {
+                "ssl-target-name-override": "orderer1-ufsc",
+                "hostnameOverride": "orderer1-ufsc"
+            },
+            "tlsCACerts": {
+                "path": "/EnergyNetwork/hyperledger/ufsc/msp/tlscacerts/tls-ca-cert.pem"
+            },
+            "adminPrivateKeyPEM": {
+                "path": "/EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem"
+            },
+            "signedCertPEM": {
+                "path": "/EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem"
+            }
+        },
+        "orderer1-parma": {
+            "url": "grpcs://orderer1-parma:7050",
+            "mspid": "UFSC",
+            "grpcOptions": {
+                "ssl-target-name-override": "orderer1-parma",
+                "hostnameOverride": "orderer1-parma"
+            },
+            "tlsCACerts": {
+                "path": "/EnergyNetwork/hyperledger/parma/msp/tlscacerts/tls-ca-cert.pem"
+            },
+            "adminPrivateKeyPEM": {
+                "path": "/EnergyNetwork/hyperledger/parma/admin1/msp/keystore/key.pem"
+            },
+            "signedCertPEM": {
+                "path": "/EnergyNetwork/hyperledger/parma/admin1/msp/signcerts/cert.pem"
+            }
+        }
+    },
+    "peers": {
+        "peer1-ufsc": {
+            "url": "grpcs://peer1-ufsc:7051",
+            "grpcOptions": {
+                "ssl-target-name-override": "peer1-ufsc",
+                "hostnameOverride": "peer1-ufsc",
+                "request-timeout": 120001
+            },
+            "tlsCACerts": {
+                "path": "/EnergyNetwork/hyperledger/ufsc/msp/tlscacerts/tls-ca-cert.pem"
+            }
+        },
+        "peer2-ufsc": {
+            "url": "grpcs://peer2-ufsc:7051",
+            "grpcOptions": {
+                "ssl-target-name-override": "peer2-ufsc",
+                "hostnameOverride": "peer2-ufsc",
+                "request-timeout": 120001
+            },
+            "tlsCACerts": {
+                "path": "/EnergyNetwork/hyperledger/ufsc/msp/tlscacerts/tls-ca-cert.pem"
+            }
+        },
+        "peer1-parma": {
+            "url": "grpcs://peer1-parma:7051",
+            "grpcOptions": {
+                "ssl-target-name-override": "peer1-parma",
+                "hostnameOverride": "peer1-parma",
+                "request-timeout": 120001
+            },
+            "tlsCACerts": {
+                "path": "/EnergyNetwork/hyperledger/parma/msp/tlscacerts/tls-ca-cert.pem"
+            }
+        }
+    },
+    "certificateAuthorities": {
+        "rca-ufsc": {
+            "url": "https://rca-ufsc:7053",
+            "grpcOptions": {
+                "verify": true
+            },
+            "tlsCACerts": {
+                "path": "/EnergyNetwork/hyperledger/ufsc/msp/tlscacerts/tls-ca-cert.pem"
+            },
+            "registrar": [
+                {
+                    "enrollId": "admin",
+                    "enrollSecret": "adminpw"
+                }
+            ]
+        },
+        "rca-parma": {
+            "url": "https://rca-parma:7053",
+            "grpcOptions": {
+                "verify": true
+            },
+            "tlsCACerts": {
+                "path": "/EnergyNetwork/hyperledger/parma/msp/tlscacerts/tls-ca-cert.pem"
+            },
+            "registrar": [
+                {
+                    "enrollId": "admin",
+                    "enrollSecret": "adminpw"
+                }
+            ]
+        },
+        "rca-idemixorg": {
+            "url": "https://rca-idemixorg:7053",
+            "grpcOptions": {
+                "verify": true
+            },
+            "tlsCACerts": {
+                "path": "/EnergyNetwork/hyperledger/idemixorg/msp/tlscacerts/tls-ca-cert.pem"
+            },
+            "registrar": [
+                {
+                    "enrollId": "admin",
+                    "enrollSecret": "adminpw"
+                }
+            ]
+        }
+    }
+}

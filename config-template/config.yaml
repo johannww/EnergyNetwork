@@ -1,0 +1,15 @@
+NodeOUs:
+    Enable: true
+    ClientOUIdentifier:
+      #Certificate: cacerts/ORGNAME-rca-cert.pem
+      OrganizationalUnitIdentifier: client
+    PeerOUIdentifier:
+      #Certificate: cacerts/ORGNAME-rca-cert.pem
+      OrganizationalUnitIdentifier: peer
+    AdminOUIdentifier:
+      #Certificate: cacerts/ORGNAME-rca-cert.pem
+      OrganizationalUnitIdentifier: admin
+    OrdererOUIdentifier:
+      #Certificate: cacerts/ORGNAME-rca-cert.pem
+      OrganizationalUnitIdentifier: orderer
+  

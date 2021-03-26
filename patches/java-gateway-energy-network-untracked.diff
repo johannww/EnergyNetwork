@@ -1,0 +1,410 @@
+diff --git a/src/main/java/org/hyperledger/fabric/gateway/IdemixIdentity.java b/src/main/java/org/hyperledger/fabric/gateway/IdemixIdentity.java
+new file mode 100644
+index 0000000..af2bc57
+--- /dev/null
++++ b/src/main/java/org/hyperledger/fabric/gateway/IdemixIdentity.java
+@@ -0,0 +1,60 @@
++/*
++ * Implemented by Johann Westphall
++ */
++
++package org.hyperledger.fabric.gateway;
++
++import java.security.PublicKey;
++import org.hyperledger.fabric.protos.idemix.Idemix.CredentialRevocationInformation;
++import org.hyperledger.fabric.sdk.idemix.IdemixCredential;
++import org.hyperledger.fabric.sdk.idemix.IdemixIssuerPublicKey;
++import org.apache.milagro.amcl.FP256BN.BIG;
++
++/**
++ * Identity comprising an X.509 certificate and associated private key. Instances are created using
++ * {@link Identities#newX509Identity(String, X509Certificate, PrivateKey)}.
++ */
++public interface IdemixIdentity extends Identity {
++
++    /**
++     * Get the Issuer Public Key from identity issuer (Usually the CA).
++     * @return An IdemixIssuerPublicKey.
++     */
++    IdemixIssuerPublicKey getIpk();
++
++    /**
++     * Get the Revocation Public Key from identity issuer (Usually the CA).
++     * @return A public key.
++     */
++    PublicKey getRpk();
++
++    /**
++     * Get the idemix user secret (SK).
++     * @return A BIG FP256BN.
++     */
++    BIG getSk();
++
++    /**
++     * Idemix credential issued by the CA to the user.
++     * @return A IdemixCredential.
++     */
++    IdemixCredential getCred();
++
++    /**
++     * Idemix credential revocation info.
++     * @return CredentialRevocationInformation.
++     */
++    CredentialRevocationInformation getCri();
++
++    /**
++     * Get organization unit from the user.
++     * @return A string.
++     */
++    String getOu();
++
++    /**
++     * Get the role mask EITHER from the JSON Field or the IdemixCredential.
++     * @return An int.
++     */
++    int getRoleMask();
++}
+diff --git a/src/main/java/org/hyperledger/fabric/gateway/impl/identity/IdemixIdentityImpl.java b/src/main/java/org/hyperledger/fabric/gateway/impl/identity/IdemixIdentityImpl.java
+new file mode 100644
+index 0000000..bf18b65
+--- /dev/null
++++ b/src/main/java/org/hyperledger/fabric/gateway/impl/identity/IdemixIdentityImpl.java
+@@ -0,0 +1,177 @@
++/*
++ * Implemented by Johann Westphall
++ */
++
++package org.hyperledger.fabric.gateway.impl.identity;
++
++import java.security.PublicKey;
++import java.util.Base64;
++import java.util.Objects;
++
++import javax.json.JsonObject;
++
++import com.google.protobuf.ByteString;
++import com.google.protobuf.InvalidProtocolBufferException;
++
++import org.hyperledger.fabric.gateway.IdemixIdentity;
++import org.hyperledger.fabric.protos.idemix.Idemix.CredentialRevocationInformation;
++import org.hyperledger.fabric.sdk.idemix.IdemixCredential;
++import org.hyperledger.fabric.sdk.idemix.IdemixIssuerPublicKey;
++import org.apache.commons.logging.Log;
++import org.apache.commons.logging.LogFactory;
++import org.apache.milagro.amcl.FP256BN.BIG;
++
++import org.hyperledger.fabric.protos.idemix.Idemix;
++
++public final class IdemixIdentityImpl implements IdemixIdentity {
++
++    private static final Log LOG = LogFactory.getLog(IdemixIdentityImpl.class);
++
++    private final String mspId;
++    private final IdemixIssuerPublicKey ipk;
++    private final PublicKey rpk;
++    private final BIG sk;
++    private final IdemixCredential cred;
++    private final CredentialRevocationInformation cri;
++    private String ou;
++    private int roleMask;
++
++    public IdemixIdentityImpl(final String mspId, final IdemixIssuerPublicKey ipk, final PublicKey rpk,
++            final JsonObject signerConfig) throws InvalidProtocolBufferException {
++        if (mspId == null) {
++            throw new NullPointerException("mspId must not be null");
++        }
++        if (ipk == null) {
++            throw new NullPointerException("IPK must not be null");
++        }
++        if (rpk == null) {
++            throw new NullPointerException("RPK must not be null");
++        }
++        if (signerConfig == null) {
++            throw new NullPointerException("SignerConfig must not be null");
++        }
++
++        this.mspId = mspId;
++        this.ipk = ipk;
++        this.rpk = rpk;
++        this.cred = new IdemixCredential(Idemix.Credential.newBuilder()
++                .mergeFrom(ByteString.copyFrom(Base64.getDecoder().decode(signerConfig.getString("Cred")))).build());
++        this.sk = BIG.fromBytes(Base64.getDecoder().decode(signerConfig.getString("Sk")));
++        this.cri = Idemix.CredentialRevocationInformation.newBuilder()
++                .mergeFrom(ByteString.copyFrom(
++                        Base64.getDecoder().decode(signerConfig.getString("credential_revocation_information"))))
++                .build();
++
++        try {
++            this.ou = signerConfig.getString("organizational_unit_identifier");
++        } catch (Exception e) {
++            LOG.warn(
++                    "'organizational_unit_identifier' is not present in the JSON SignerConfig generated by Fabric CA!\nIt might be present on credentials, but I wont verify it");
++            this.ou = "";
++        }
++        try {
++            this.roleMask = Integer.parseInt(signerConfig.getString("role"));
++        } catch (Exception e) {
++            LOG.warn(
++                    "'role' is not present in the JSON SignerConfig... I am BYPASSING this by setting its value with the role inside 'Cred' JSON field (WHICH IS THE ONE THAT MATTERS");
++            this.roleMask = this.cred.getAttrs()[1][31];
++        }
++
++    }
++
++    public IdemixIdentityImpl(String mspId, IdemixIssuerPublicKey ipk, PublicKey rpk, BIG sk, IdemixCredential cred,
++            CredentialRevocationInformation cri, String ou, int roleMask) {
++        if (mspId == null) {
++            throw new NullPointerException("mspId must not be null");
++        }
++        if (ipk == null) {
++            throw new NullPointerException("IPK must not be null");
++        }
++        if (rpk == null) {
++            throw new NullPointerException("RPK must not be null");
++        }
++        if (sk == null) {
++            throw new NullPointerException("SK must not be null");
++        }
++        if (cred == null) {
++            throw new NullPointerException("CRED must not be null");
++        }
++        if (cri == null) {
++            throw new NullPointerException("CRI must not be null");
++        }
++        if (ou == null) {
++            throw new NullPointerException("OU must not be null");
++        }
++
++        this.mspId = mspId;
++        this.ipk = ipk;
++        this.rpk = rpk;
++        this.sk = sk;
++        this.cred = cred;
++        this.cri = cri;
++        this.ou = ou;
++        this.roleMask = roleMask;
++    }
++
++    @Override
++    public String getMspId() {
++        return mspId;
++    }
++
++    @Override
++    public IdemixCredential getCred() {
++        return this.cred;
++    }
++
++    @Override
++    public CredentialRevocationInformation getCri() {
++        return this.cri;
++    }
++
++    @Override
++    public IdemixIssuerPublicKey getIpk() {
++        return this.ipk;
++    }
++
++    @Override
++    public String getOu() {
++        return this.ou;
++    }
++
++    @Override
++    public int getRoleMask() {
++        return this.roleMask;
++    }
++
++    @Override
++    public PublicKey getRpk() {
++        return this.rpk;
++    }
++
++    @Override
++    public BIG getSk() {
++        return this.sk;
++    }
++
++    @Override
++    public boolean equals(final Object other) {
++        if (this == other) {
++            return true;
++        }
++        if (!(other instanceof IdemixIdentityImpl)) {
++            return false;
++        }
++
++        IdemixIdentityImpl that = (IdemixIdentityImpl) other;
++        return Objects.equals(this.mspId, that.mspId) && Objects.equals(this.sk, that.sk);
++
++    }
++
++    @Override
++    public int hashCode() {
++        // Private key does not have a consistent hash code depending on how it was
++        // serialized so don't use that
++        return Objects.hash(mspId, cred.toString(), sk.toString());
++    }
++
++}
+diff --git a/src/main/java/org/hyperledger/fabric/gateway/impl/identity/IdemixIdentityProvider.java b/src/main/java/org/hyperledger/fabric/gateway/impl/identity/IdemixIdentityProvider.java
+new file mode 100644
+index 0000000..c448068
+--- /dev/null
++++ b/src/main/java/org/hyperledger/fabric/gateway/impl/identity/IdemixIdentityProvider.java
+@@ -0,0 +1,155 @@
++/*
++ * Implemented by Johann Westphall
++ */
++
++package org.hyperledger.fabric.gateway.impl.identity;
++
++import java.io.IOException;
++import java.lang.reflect.InvocationTargetException;
++import java.security.InvalidKeyException;
++import java.security.PublicKey;
++import java.security.cert.CertificateException;
++import java.util.Base64;
++
++import javax.json.Json;
++import javax.json.JsonObject;
++
++import com.google.protobuf.InvalidProtocolBufferException;
++
++import org.hyperledger.fabric.gateway.GatewayRuntimeException;
++import org.hyperledger.fabric.gateway.Identities;
++import org.hyperledger.fabric.gateway.Identity;
++import org.hyperledger.fabric.protos.idemix.Idemix;
++import org.hyperledger.fabric.gateway.IdemixIdentity;
++import org.hyperledger.fabric.sdk.Enrollment;
++import org.hyperledger.fabric.sdk.HFClient;
++import org.hyperledger.fabric.sdk.User;
++import org.hyperledger.fabric.sdk.exception.CryptoException;
++import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
++import org.hyperledger.fabric.sdk.idemix.IdemixIssuerPublicKey;
++import org.hyperledger.fabric.sdk.security.CryptoSuite;
++import org.hyperledger.fabric.sdk.security.CryptoSuiteFactory;
++
++import org.hyperledger.fabric.sdk.identity.IdemixEnrollment;
++
++import org.apache.milagro.amcl.FP256BN.BIG;
++
++public enum IdemixIdentityProvider implements IdentityProvider<IdemixIdentity> {
++    INSTANCE;
++
++    private static final String TYPE_ID = "idemix";
++    private static final String JSON_CREDENTIALS = "credentials";
++    private static final String JSON_CREDENTIALS_IPK = "ipk";
++    private static final String JSON_CREDENTIALS_REVOCATION_PUBLIC_KEY = "rpk";
++    private static final String JSON_SIGNER_CONFIG = "signer_config";
++    private static final String JSON_CREDENTIALS_SIGNER_COFIG_CRED = "Cred";
++    private static final String JSON_CREDENTIALS_SIGNER_COFIG_SK = "Sk";
++    private static final String JSON_CREDENTIALS_SIGNER_COFIG_OU_ID = "organizational_unit_identifier";
++    private static final String JSON_CREDENTIALS_SIGNER_COFIG_ROLE = "role";
++    private static final String JSON_CREDENTIALS_SIGNER_COFIG_CRI = "credential_revocation_information";
++
++    @Override
++    public Class<IdemixIdentity> getType() {
++        return IdemixIdentity.class;
++    }
++
++    @Override
++    public String getTypeId() {
++        return TYPE_ID;
++    }
++
++    @Override
++    public JsonObject toJson(final Identity identity) {
++        IdemixIdentity idemixIdentity = (IdemixIdentity) identity;
++
++        String ipkB64 = Base64.getEncoder().encodeToString(idemixIdentity.getIpk().toProto().toByteArray());
++        String rpk = Identities.toPemString(idemixIdentity.getRpk());
++        String credB64 = Base64.getEncoder().encodeToString(idemixIdentity.getCred().toProto().toByteArray());
++
++        BIG sk =  idemixIdentity.getSk();
++        byte[] skBytes = new byte[(sk.nbits() + 8 - 1) / 8];
++        sk.toBytes(skBytes);
++        String skStr = new String(Base64.getEncoder().encode(skBytes));
++
++        String criB64 = Base64.getEncoder().encodeToString(idemixIdentity.getCri().toByteArray());
++        String ou = idemixIdentity.getOu();
++        String roleStr = Integer.toString(idemixIdentity.getRoleMask());
++
++        return Json.createObjectBuilder().add(IdentityConstants.JSON_VERSION, 1)
++                .add(IdentityConstants.JSON_MSP_ID, idemixIdentity.getMspId()).add(IdentityConstants.JSON_TYPE, TYPE_ID)
++                .add(JSON_CREDENTIALS,
++                        Json.createObjectBuilder().add(JSON_CREDENTIALS_IPK, ipkB64)
++                                .add(JSON_CREDENTIALS_REVOCATION_PUBLIC_KEY, rpk).add(JSON_SIGNER_CONFIG,
++                                        Json.createObjectBuilder().add(JSON_CREDENTIALS_SIGNER_COFIG_CRED, credB64)
++                                                .add(JSON_CREDENTIALS_SIGNER_COFIG_SK, skStr)
++                                                .add(JSON_CREDENTIALS_SIGNER_COFIG_OU_ID, ou)
++                                                .add(JSON_CREDENTIALS_SIGNER_COFIG_ROLE, roleStr)
++                                                .add(JSON_CREDENTIALS_SIGNER_COFIG_CRI, criB64)))
++                .build();
++    }
++
++    @Override
++    public IdemixIdentity fromJson(final JsonObject identityData)
++            throws CertificateException, InvalidKeyException, IOException {
++        try {
++            return deserializeIdentity(identityData);
++        } catch (RuntimeException e) {
++            // May receive a runtime exception if JSON data is not of the expected format
++            throw new IOException(e);
++        }
++    }
++
++    private IdemixIdentity deserializeIdentity(final JsonObject identityData)
++            throws IOException, CertificateException, InvalidKeyException {
++        final String type = identityData.getString(IdentityConstants.JSON_TYPE);
++        if (!TYPE_ID.equals(type)) {
++            throw new IOException("Bad type for provider: " + type);
++        }
++
++        final int version = identityData.getInt(IdentityConstants.JSON_VERSION);
++        switch (version) {
++            case 1:
++                return newIdentity(identityData);
++            default:
++                throw new IOException("Unsupported identity data version: " + version);
++        }
++    }
++
++    private IdemixIdentity newIdentity(final JsonObject identityData)
++            throws CertificateException, InvalidKeyException, InvalidProtocolBufferException {
++        String mspId = identityData.getString(IdentityConstants.JSON_MSP_ID);
++
++        JsonObject credentials = identityData.getJsonObject(JSON_CREDENTIALS);
++        String ipkB64 = credentials.getString(JSON_CREDENTIALS_IPK);
++        String rpkPem = credentials.getString(JSON_CREDENTIALS_REVOCATION_PUBLIC_KEY);
++
++        Idemix.IssuerPublicKey ipk = Idemix.IssuerPublicKey.newBuilder().mergeFrom(Base64.getDecoder().decode(ipkB64))
++                .build();
++        IdemixIssuerPublicKey idemixIpk = new IdemixIssuerPublicKey(ipk);
++
++        PublicKey revocationPublicKey = Identities.readPublicKey(rpkPem);
++
++        JsonObject signerConfig = credentials.getJsonObject(JSON_SIGNER_CONFIG);
++
++        return Identities.newIdemixIdentity(mspId, idemixIpk, revocationPublicKey, signerConfig);
++    }
++
++    @Override
++    public void setUserContext(final HFClient client, final Identity identity, final String name) {
++        IdemixIdentity idemixId = (IdemixIdentity) identity;
++
++        Enrollment enrollment = new IdemixEnrollment(idemixId.getIpk(), idemixId.getRpk(), idemixId.getMspId(),
++                idemixId.getSk(), idemixId.getCred(), idemixId.getCri(), idemixId.getOu(), idemixId.getRoleMask());
++        User user = new GatewayUser(name, idemixId.getMspId(), enrollment);
++
++        try {
++            CryptoSuite cryptoSuite = CryptoSuiteFactory.getDefault().getCryptoSuite();
++            client.setCryptoSuite(cryptoSuite);
++            client.setUserContext(user);
++        } catch (ClassNotFoundException | CryptoException | IllegalAccessException | NoSuchMethodException
++                | InstantiationException | InvalidArgumentException | InvocationTargetException e) {
++            throw new GatewayRuntimeException("Failed to configure user context", e);
++        }
++    }
++
++}

@@ -1,0 +1,158 @@
+{
+	"name": "basic-network",
+	"version": "1.0.0",
+	"client": {
+		"organization": "UFSC",
+		"connection": {
+			"timeout": {
+				"peer": {
+					"endorser": "300"
+				},
+				"orderer": "300"
+			}
+		}
+	},
+	"channels": {
+		"canal": {
+			"orderers": [
+				"orderer1-ufsc", "orderer1-parma"
+			],
+			"peers": {
+				"peer1-ufsc": {
+					"endorsingPeer": true,
+					"chaincodeQuery": true,
+					"ledgerQuery": true,
+					"eventSource": false
+				},
+				"peer1-parma": {
+					"endorsingPeer": true,
+					"chaincodeQuery": true,
+					"ledgerQuery": true,
+					"eventSource": false
+				}
+			}
+		}
+	},
+	"organizations": {
+		"UFSC": {
+			"mspid": "UFSC",
+			"peers": [
+				"peer1-ufsc"
+			],
+			"certificateAuthorities": [
+				"rca-ufsc"
+			]
+		},
+		"PARMA": {
+			"mspid": "PARMA",
+			"peers": [
+				"peer1-parma"
+			],
+			"certificateAuthorities": [
+				"rca-parma"
+			]
+		},
+		"IDEMIXORG": {
+			"mspid": "IDEMIXORG",
+			"peers": [],
+			"certificateAuthorities": [
+				"rca-idemixorg"
+			]
+		}
+	},
+	"orderers": {
+		"orderer1-ufsc": {
+			"url": "grpcs://localhost:7003",
+			"mspid": "UFSC",
+			"grpcOptions": {
+				"ssl-target-name-override": "orderer1-ufsc",
+				"hostnameOverride": "orderer1-ufsc"
+			},
+			"tlsCACerts": {
+				"path": "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\orderer1\\tls-msp\\tlscacerts\\tls-0-0-0-0-7052.pem"
+			}
+		},
+		"orderer1-parma": {
+			"url": "grpcs://localhost:7004",
+			"mspid": "PARMA",
+			"grpcOptions": {
+				"ssl-target-name-override": "orderer1-parma",
+				"hostnameOverride": "orderer1-parma"
+			},
+			"tlsCACerts": {
+				"path": "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\parma\\orderer1\\tls-msp\\tlscacerts\\tls-0-0-0-0-7052.pem"
+			}
+		}
+	},
+	"peers": {
+		"peer1-ufsc": {
+			"url": "grpcs://localhost:7006",
+			"grpcOptions": {
+				"ssl-target-name-override": "peer1-ufsc",
+				"hostnameOverride": "peer1-ufsc",
+				"request-timeout": 120001
+			},
+			"tlsCACerts": {
+				"path": "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\orderer1\\tls-msp\\tlscacerts\\tls-0-0-0-0-7052.pem"
+			}
+		},
+		"peer1-parma": {
+			"url": "grpcs://localhost:7008",
+			"grpcOptions": {
+				"ssl-target-name-override": "peer1-parma",
+				"hostnameOverride": "peer1-parma",
+				"request-timeout": 120001
+			},
+			"tlsCACerts": {
+				"path": "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\parma\\orderer1\\tls-msp\\tlscacerts\\tls-0-0-0-0-7052.pem"
+			}
+		}
+	},
+	"certificateAuthorities": {
+		"rca-ufsc": {
+			"url": "https://localhost:7000",
+			"grpcOptions": {
+				"verify": true
+			},
+			"tlsCACerts": {
+				"path": "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\orderer1\\tls-msp\\tlscacerts\\tls-0-0-0-0-7052.pem"
+			},
+			"registrar": [
+				{
+					"enrollId": "admin",
+					"enrollSecret": "adminpw"
+				}
+			]
+		},
+		"rca-parma": {
+			"url": "https://localhost:7001",
+			"grpcOptions": {
+				"verify": true
+			},
+			"tlsCACerts": {
+				"path": "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\parma\\orderer1\\tls-msp\\tlscacerts\\tls-0-0-0-0-7052.pem"
+			},
+			"registrar": [
+				{
+					"enrollId": "admin",
+					"enrollSecret": "adminpw"
+				}
+			]
+		},
+		"rca-idemixorg": {
+			"url": "https://localhost:7002",
+			"grpcOptions": {
+				"verify": true
+			},
+			"tlsCACerts": {
+				"path": "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\idemixorg\\orderer1\\tls-msp\\tlscacerts\\tls-0-0-0-0-7052.pem"
+			},
+			"registrar": [
+				{
+					"enrollId": "admin",
+					"enrollSecret": "adminpw"
+				}
+			]
+		}
+	}
+}

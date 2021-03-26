@@ -1,0 +1,8 @@
+{
+    "index":{
+        "fields":["timestamp","assetid"]
+    },
+        "ddoc":"indexSmartDataDoc", 
+        "name":"indexSmartData",
+        "type":"json"
+}

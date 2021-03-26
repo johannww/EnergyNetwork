@@ -1,0 +1,109 @@
+// Copyright the Hyperledger Fabric contributors. All rights reserved.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+option go_package = "proto-structs";
+
+package protos;
+
+
+message ActiveSensor {
+	string mspID = 1  [json_name="mspid"];  
+	string sensorID = 2  [json_name="sensorid"];  
+    bool isActive = 3 [json_name="active"];  
+	sfixed32 x = 4 [json_name="x"];           
+	sfixed32 y = 5 [json_name="y"];        
+	sfixed32 z = 6 [json_name="z"];        
+	double radius = 7 [json_name="radius"];    
+}
+
+//SmartData struct with data from sensor
+//SmartData aprox. memory size = 10 + 177 + 1 + 4 + 8 + 8 + 1 + 1 + 4 + 4 + 4 + 4 = 226 bytes
+message SmartData {
+	string assetID = 1 [json_name="assetid"];
+	sfixed32 version = 2 [json_name="version"]; 
+	fixed32 unit = 3 [json_name="unit"];         
+	fixed64 timestamp = 4 [json_name="timestamp"];   
+	double value = 5 [json_name="value"];
+	fixed32 error = 6 [json_name="e"]; 
+	fixed32 confidence = 7 [json_name="confidence"];    
+	fixed32 dev = 8 [json_name="dev"];  
+}
+
+//SellerInfo stores information regarding the seller in terms of
+//energy generated, generation gear and coin balance
+//SellerInfo aprox. memory size = 10 + 177 + 10 + 177 + 4 + 4 + (len(EnergyTypes)*(8 + 10)) + 8 + 8 + 4 = 492 bytes
+message SellerInfo {
+	string mspIDSeller = 1 [json_name="mspseller"];                          
+	string sellerID = 2 [json_name="sellerid"];                     
+	string mspIDSmartMeter = 3 [json_name="mspsmartmeter"];                      
+	string smartMeterID = 4 [json_name="smartmeterid"];                 
+	fixed64 windTurbinesNumber = 5 [json_name="windturbinesnumber"];            
+	fixed64 solarPanelsNumber = 6 [json_name="solarpanelsnumber"];         
+	map<string, double> energyToSellByType = 7 [json_name="energytosell"];    
+	fixed64 lastGenerationTimestamp = 8 [json_name="lastgenerationtimestamp"];             
+	fixed64 lastBidID = 9 [json_name="lastbid"]; 
+}
+
+// MeterSeller was created so we could abdon CouchDB by adding a link from
+// the MspIDSmartMeter+SmartMeterID pointing to the SellerInfo of the seller the
+// meter belongs to.
+// We found out that LevelDB with StateKey or KeyRange queries are 1000x faster than CouchDB JSON
+// queries and 10x faster than CouchDB StateKey or KeyRange queries.
+// Our intent was to substitute the query:  queryString := fmt.Sprintf(, meterMspID, meterID)
+// in function: getSellerInfoRelatedToSmartMeter()
+// So we had to create the MeterSeller to gain efficiency on database access
+message MeterSeller {
+	string mspIDSeller = 1 [json_name="mspseller"]; 
+	string sellerID = 2 [json_name="sellerid"];
+}
+
+//SellBid stores information regarding the seller wish
+//to sell a certain energy type.
+//SellBid is used in the auction
+//SellBid aprox. memory size = 1 + 10 + 177 + 4 + 8 + 8 + 10 = 218 bytes
+message SellBid {   
+	string mspIDSeller = 1 [json_name="mspseller"];       
+	string sellerID = 2 [json_name="sellerid"];    
+	fixed64 sellerBidNumber = 3 [json_name="sellerbidnumber"];
+	double energyQuantityKWH = 4 [json_name="energyquantity"];
+	double pricePerKWH = 5 [json_name="priceperkwh"];      
+	string energyType = 6 [json_name="energytype"];          
+}
+
+//BuyBid is used in the auction
+//BuyBid aprox. memory size = 10 + len(token) + 8 + 8 + 10 + 1 = 37 + len(token) bytes
+message BuyBid {
+	string mspIDPaymentCompany = 1 [json_name="msppaymentcompany"];
+	string token = 2 [json_name="token"];
+	string utilityMspID = 3 [json_name="utilityid"];       
+	double energyQuantityKWH = 4 [json_name="energyquantity"];
+	double pricePerKWH = 5 [json_name="priceperkwh"];
+	string energyType = 6 [json_name="energytype"];
+	bool validated = 7 [json_name="validated"]; 
+}
+
+//EnergyTransaction is the result of a SellBid matched to a BuyBid after the auction
+//EnergyTransaction aprox. memory size = 10 + 177 + 4 + 10 + len(token) + 8 + 8 + 10 = 227 + len(token) bytes
+message EnergyTransaction {
+	string mspIDSeller = 1 [json_name="mspseller"];       
+	string sellerID = 2 [json_name="sellerid"];    
+	fixed64 sellerBidNumber = 3 [json_name="sellerbidnumber"];  
+	string mspIDPaymentCompany = 4 [json_name="msppaymentcompany"];
+	string token = 5 [json_name="token"]; 
+	string buyerUtilityMspID = 6 [json_name="utilityid"];  
+	double energyQuantityKWH = 7 [json_name="energyquantity"];
+	double pricePerKWH = 8 [json_name="priceperkwh"];
+	string energyType = 9 [json_name="energytype"];
+}
+
+message FullToken {
+	string mspIDPaymentCompany = 1 [json_name="msppaymentcompany"];
+	string token = 2 [json_name="token"];
+}
+
+message SellBidEnergyTransactions {
+	repeated FullToken fullTokens = 1 [json_name="fulltokens"]; 
+}

@@ -1,0 +1,54 @@
+---
+    name: basic-network
+    version: 1.0.0
+    client:
+      organization: UFSC
+      connection:
+        timeout:
+          peer:
+            endorser: '300'
+          orderer: '300'
+    channels:
+      canal:
+        orderers:
+        - orderer1-ufsc
+        peers:
+          peer1-ufsc:
+            endorsingPeer: true
+            chaincodeQuery: true
+            ledgerQuery: true
+            eventSource: true
+    organizations:
+      UFSC:
+        mspid: UFSC
+        peers:
+        - peer1-ufsc
+        certificateAuthorities:
+        - rca-ufsc
+        adminPrivateKeyPEM:
+          path: D:\UFSC\Mestrado\Hyperledger\Fabric\AutoFabricProductionNetwork\hyperledger\ufsc\admin1\tls-msp\keystore\key.pem
+        signedCertPEM:
+          path: D:\UFSC\Mestrado\Hyperledger\Fabric\AutoFabricProductionNetwork\hyperledger\ufsc\admin1\tls-msp\signcerts\cert.pem 
+    orderers:
+      orderer1-ufsc:
+        url: grpcs://localhost:7003
+        mspid: UFSC
+        tlsCACerts:
+          path: D:\UFSC\Mestrado\Hyperledger\Fabric\AutoFabricProductionNetwork\hyperledger\ufsc\orderer1\tls-msp\tlscacerts\tls-0-0-0-0-7052.pem
+        adminPrivateKeyPEM:
+          path: D:\UFSC\Mestrado\Hyperledger\Fabric\AutoFabricProductionNetwork\hyperledger\ufsc\admin1\tls-msp\keystore\key.pem
+        signedCertPEM:
+          path: D:\UFSC\Mestrado\Hyperledger\Fabric\AutoFabricProductionNetwork\hyperledger\ufsc\admin1\tls-msp\signcerts\cert.pem 
+    peers:
+      peer1-ufsc:
+        url: grpcs://localhost:7005
+        tlsCACerts:
+          path: D:\UFSC\Mestrado\Hyperledger\Fabric\AutoFabricProductionNetwork\hyperledger\ufsc\peer1\tls-msp\tlscacerts\tls-0-0-0-0-7052.pem       
+    certificateAuthorities:
+      rca-ufsc:
+        url: https://localhost:7000
+        caName: rca-ufsc
+        grpcOptions:
+          verify: true
+        tlsCACerts:
+          path: D:\UFSC\Mestrado\Hyperledger\Fabric\AutoFabricProductionNetwork\hyperledger\ufsc\admin1\tls-msp\tlscacerts\tls-0-0-0-0-7052.pem

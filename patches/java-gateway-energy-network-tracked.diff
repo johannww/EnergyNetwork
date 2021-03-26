@@ -1,0 +1,321 @@
+diff --git a/pom.xml b/pom.xml
+index cb19b23..98fdaab 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -86,7 +86,7 @@
+         <dependency>
+             <groupId>org.hyperledger.fabric-sdk-java</groupId>
+             <artifactId>fabric-sdk-java</artifactId>
+-            <version>[2.2.0,2.3.0)</version>
++            <version>2.2.5</version>
+         </dependency>
+         <dependency>
+             <groupId>org.mockito</groupId>
+@@ -354,7 +354,7 @@
+                             </execution>
+                         </executions>
+                     </plugin>
+-                    <plugin>
++                    <!---<plugin>
+                         <groupId>org.apache.maven.plugins</groupId>
+                         <artifactId>maven-gpg-plugin</artifactId>
+                         <configuration>
+@@ -370,7 +370,7 @@
+                                 </goals>
+                             </execution>
+                         </executions>
+-                    </plugin>
++                    </plugin> -->
+                     <plugin>
+                         <groupId>org.apache.maven.plugins</groupId>
+                         <artifactId>maven-source-plugin</artifactId>
+@@ -387,7 +387,7 @@
+                     <plugin>
+                         <groupId>org.apache.maven.plugins</groupId>
+                         <artifactId>maven-javadoc-plugin</artifactId>
+-                        <version>2.10.4</version>
++                        <version>3.0.1</version>
+                         <configuration>
+                             <excludePackageNames>
+                                 org.hyperledger.fabric.gateway.impl
+diff --git a/src/main/java/org/hyperledger/fabric/gateway/Identities.java b/src/main/java/org/hyperledger/fabric/gateway/Identities.java
+index 1fa60c7..3676fa6 100644
+--- a/src/main/java/org/hyperledger/fabric/gateway/Identities.java
++++ b/src/main/java/org/hyperledger/fabric/gateway/Identities.java
+@@ -11,13 +11,23 @@ import java.io.Reader;
+ import java.io.StringReader;
+ import java.io.StringWriter;
+ import java.io.UncheckedIOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
+ import java.security.InvalidKeyException;
+ import java.security.PrivateKey;
++import java.security.PublicKey;
+ import java.security.cert.Certificate;
+ import java.security.cert.CertificateException;
+ import java.security.cert.X509Certificate;
+ 
++import javax.json.Json;
++import javax.json.JsonObject;
++
++import com.google.protobuf.InvalidProtocolBufferException;
++
+ import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
++import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+ import org.bouncycastle.cert.X509CertificateHolder;
+ import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+ import org.bouncycastle.openssl.PEMException;
+@@ -29,7 +39,11 @@ import org.bouncycastle.openssl.jcajce.JcaPKCS8Generator;
+ import org.bouncycastle.util.io.pem.PemGenerationException;
+ import org.bouncycastle.util.io.pem.PemObject;
+ import org.hyperledger.fabric.gateway.impl.identity.X509IdentityImpl;
++import org.hyperledger.fabric.protos.idemix.Idemix;
+ import org.hyperledger.fabric.sdk.Enrollment;
++import org.hyperledger.fabric.sdk.idemix.IdemixIssuerPublicKey;
++import org.hyperledger.fabric.sdk.identity.IdemixEnrollment;
++import org.hyperledger.fabric.gateway.impl.identity.IdemixIdentityImpl;
+ 
+ /**
+  * This class consists exclusively of static methods used to create and operate on identity information.
+@@ -59,6 +73,121 @@ public final class Identities {
+         return newX509Identity(mspId, readX509Certificate(enrollment.getCert()), enrollment.getKey());
+     }
+ 
++    /**
++     * Create a new identity using Idemix credentials.
++     *
++     * @param mspId            Member Services Provider identifier for the
++     *                         organization to which this identity belongs.
++     * @param ipkPath          the path to IssuerPublicKey generated in the
++     *                         enrollment by the CA.
++     * @param revocationPkPath the path to RevocationPublicKey generated in the
++     *                         enrollment by the CA.
++     * @param signerConfigPath the path to SignerConfig.json generated in the
++     *                         enrollment by the CA.
++     * @return An identity.
++     * @throws NullPointerException            if any of the arguments are null.
++     * @throws InvalidProtocolBufferException         if protobuf merge fails
++     * @throws IOException                   if a file cannot be read
++     * @throws CertificateException  if a certificate read fails
++     * @throws InvalidKeyException  if the read ipk is invalid
++     */
++    public static IdemixIdentity newIdemixIdentity(final String mspId, final Path ipkPath, final Path revocationPkPath,
++            final Path signerConfigPath)
++            throws InvalidProtocolBufferException, IOException, CertificateException, InvalidKeyException {
++
++        Idemix.IssuerPublicKey ipk = Idemix.IssuerPublicKey.newBuilder().mergeFrom(Files.readAllBytes(ipkPath)).build();
++        IdemixIssuerPublicKey idemixIpk = new IdemixIssuerPublicKey(ipk);
++
++        PublicKey revocationPublicKey = readPublicKey(
++                Files.newBufferedReader(revocationPkPath, StandardCharsets.UTF_8));
++        JsonObject signerConfigJson = Json.createReader(Files.newBufferedReader(signerConfigPath)).readObject();
++
++        return newIdemixIdentity(mspId, idemixIpk, revocationPublicKey, signerConfigJson);
++    }
++
++    /**
++     * Create a new identity using IdemixEnrollment.
++     *
++     * @param mspId      Member Services Provider identifier for the organization to
++     *                   which this identity belongs.
++     * @param enrollment Identity credentials.
++     * @return An Idemix identity.
++     */
++    public static IdemixIdentity newIdemixIdentity(final String mspId, final IdemixEnrollment enrollment) {
++        return new IdemixIdentityImpl(mspId, enrollment.getIpk(), enrollment.getRevocationPk(), enrollment.getSk(),
++                enrollment.getCred(), enrollment.getCri(), enrollment.getOu(), enrollment.getRoleMask());
++    }
++
++    /**
++     * Create a new identity using IdemixEnrollment.
++     *
++     * @param mspId      Member Services Provider identifier for the organization to
++     *                   which this identity belongs.
++     * @param idemixIpk CA issuer public key from user
++     * @param revocationPublicKey CA revocation public key
++     * @param signerConfigJson the SignerConfig generated in the
++     *                         enrollment by the CA.
++     * @return An Idemix identity.
++     */
++    public static IdemixIdentity newIdemixIdentity(final String mspId, final IdemixIssuerPublicKey idemixIpk,
++            final PublicKey revocationPublicKey, final JsonObject signerConfigJson) throws InvalidProtocolBufferException {
++        return new IdemixIdentityImpl(mspId, idemixIpk, revocationPublicKey, signerConfigJson);
++    }
++
++    /**
++     * Reads a pem public key and returns a PublicKey object.
++     *
++     * @param pem public key in PEM format
++     * @return A PublicKey object.
++     */
++    public static PublicKey readPublicKey(final String pem) throws InvalidKeyException, CertificateException {
++        try {
++            return readPublicKey(new StringReader(pem));
++        } catch (IOException e) {
++            // Should not happen with StringReader
++            throw new UncheckedIOException(e);
++        }
++    }
++
++    /**
++     * Reads a pem public key from a file reader and returns a PublicKey object.
++     *
++     * @param pemReader public key file reader
++     * @return A PublicKey object.
++     */
++    public static PublicKey readPublicKey(final Reader pemReader)
++            throws CertificateException, IOException, InvalidKeyException {
++        try {
++            Object pemObject = readPemObject(pemReader);
++            SubjectPublicKeyInfo publicKeyInfo = asSubjectPublicKeyInfo(pemObject);
++            return new JcaPEMKeyConverter().getPublicKey(publicKeyInfo);
++        } catch (PEMException e) {
++            throw new InvalidKeyException(e);
++        }
++    }
++
++    private static SubjectPublicKeyInfo asSubjectPublicKeyInfo(final Object pemObject)
++            throws CertificateException, InvalidKeyException {
++        SubjectPublicKeyInfo publicKeyInfo;
++        if (pemObject instanceof PEMKeyPair) {
++            publicKeyInfo = ((PEMKeyPair) pemObject).getPublicKeyInfo();
++        } else if (pemObject instanceof SubjectPublicKeyInfo) {
++            publicKeyInfo = (SubjectPublicKeyInfo) pemObject;
++        } else {
++            throw new InvalidKeyException("Unexpected PEM content type: " + pemObject.getClass().getSimpleName());
++        }
++        return publicKeyInfo;
++    }
++
++    /**
++     * Converts the argument to a PEM format string.
++     * @param publicKey A public key.
++     * @return A PEM format string.
++     */
++    public static String toPemString(final PublicKey publicKey) {
++        return asPemString(publicKey);
++    }
++
+     /**
+      * Read a PEM format X.509 certificate.
+      * @param pem PEM data.
+diff --git a/src/main/java/org/hyperledger/fabric/gateway/Transaction.java b/src/main/java/org/hyperledger/fabric/gateway/Transaction.java
+index 3abe04c..caf06e1 100644
+--- a/src/main/java/org/hyperledger/fabric/gateway/Transaction.java
++++ b/src/main/java/org/hyperledger/fabric/gateway/Transaction.java
+@@ -13,6 +13,7 @@ import java.util.concurrent.TimeoutException;
+ 
+ import org.hyperledger.fabric.gateway.spi.CommitHandlerFactory;
+ import org.hyperledger.fabric.sdk.Peer;
++import org.hyperledger.fabric.sdk.transaction.TransactionContext;
+ 
+ /**
+  * A Transaction represents a specific invocation of a transaction function, and provides
+@@ -43,6 +44,17 @@ public interface Transaction {
+      */
+     String getTransactionId();
+ 
++    /**
++     * Get the TransactionContext that will be used when submitting this transaction. This can be useful for:
++     * <ul>
++     *     <li>Getting cryptographic parameters for any verification
++     *     {@link Transaction#submit(String...)}.</li>
++     *     <li>Getting IDEMIX pseudonym to later proof of transaction authorship.</li>
++     * </ul>
++     * @return The TransactionContext.
++     */
++    TransactionContext getTransactionContext();
++
+     /**
+      * Set transient data that will be passed to the transaction function
+      * but will not be stored on the ledger. This can be used to pass
+diff --git a/src/main/java/org/hyperledger/fabric/gateway/impl/GatewayImpl.java b/src/main/java/org/hyperledger/fabric/gateway/impl/GatewayImpl.java
+index c9835e1..ab12e5d 100644
+--- a/src/main/java/org/hyperledger/fabric/gateway/impl/GatewayImpl.java
++++ b/src/main/java/org/hyperledger/fabric/gateway/impl/GatewayImpl.java
+@@ -47,6 +47,8 @@ import org.hyperledger.fabric.sdk.Peer.PeerRole;
+ import org.hyperledger.fabric.sdk.User;
+ import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+ import org.hyperledger.fabric.sdk.exception.NetworkConfigurationException;
++import org.hyperledger.fabric.gateway.IdemixIdentity;
++import org.hyperledger.fabric.gateway.impl.identity.IdemixIdentityProvider;
+ 
+ public final class GatewayImpl implements Gateway {
+     private static final Log LOG = LogFactory.getLog(Gateway.class);
+@@ -121,7 +123,7 @@ public final class GatewayImpl implements Gateway {
+             if (null == identity) {
+                 throw new IllegalArgumentException("Identity must not be null");
+             }
+-            if (!(identity instanceof X509Identity)) {
++            if (!(identity instanceof X509Identity || identity instanceof IdemixIdentity)) {
+                 throw new IllegalArgumentException("No provider for identity type: " + identity.getClass().getName());
+             }
+             this.identity = identity;
+@@ -190,7 +192,6 @@ public final class GatewayImpl implements Gateway {
+             }
+             this.networkConfig = builder.ccp;
+             this.identity = builder.identity;
+-
+             this.client = createClient();
+         }
+     }
+@@ -209,7 +210,10 @@ public final class GatewayImpl implements Gateway {
+     private HFClient createClient() {
+         HFClient client = HFClient.createNewInstance();
+         // Hard-coded type for now but needs to get appropriate provider from wallet (or registry)
+-        X509IdentityProvider.INSTANCE.setUserContext(client, identity, "gateway");
++        if (identity instanceof X509Identity)
++            X509IdentityProvider.INSTANCE.setUserContext(client, identity, "gateway");
++        else if (identity instanceof IdemixIdentity)
++            IdemixIdentityProvider.INSTANCE.setUserContext(client, identity, "gateway");
+         return client;
+     }
+ 
+diff --git a/src/main/java/org/hyperledger/fabric/gateway/impl/TransactionImpl.java b/src/main/java/org/hyperledger/fabric/gateway/impl/TransactionImpl.java
+index cae80b3..5aa503f 100644
+--- a/src/main/java/org/hyperledger/fabric/gateway/impl/TransactionImpl.java
++++ b/src/main/java/org/hyperledger/fabric/gateway/impl/TransactionImpl.java
+@@ -77,6 +77,11 @@ public final class TransactionImpl implements Transaction {
+         return transactionContext.getTxID();
+     }
+ 
++    @Override
++    public TransactionContext getTransactionContext() {
++        return transactionContext;
++    }
++
+     @Override
+     public Transaction setTransient(final Map<String, byte[]> transientData) {
+         this.transientData = transientData;
+diff --git a/src/main/java/org/hyperledger/fabric/gateway/impl/identity/WalletImpl.java b/src/main/java/org/hyperledger/fabric/gateway/impl/identity/WalletImpl.java
+index d48ff36..8d852ee 100644
+--- a/src/main/java/org/hyperledger/fabric/gateway/impl/identity/WalletImpl.java
++++ b/src/main/java/org/hyperledger/fabric/gateway/impl/identity/WalletImpl.java
+@@ -26,8 +26,10 @@ import org.hyperledger.fabric.gateway.spi.WalletStore;
+ 
+ public final class WalletImpl implements Wallet {
+     private final WalletStore store;
+-    private final Map<String, IdentityProvider<?>> providers = Stream.of(X509IdentityProvider.INSTANCE)
+-            .collect(Collectors.toMap(X509IdentityProvider::getTypeId, provider -> provider));
++    private final Map<String, IdentityProvider<?>> providers = Stream
++            .of(new IdentityProvider<?>[] {X509IdentityProvider.INSTANCE, IdemixIdentityProvider.INSTANCE})
++            .collect(Collectors.toMap(IdentityProvider::getTypeId, provider -> provider));
++
+ 
+     public WalletImpl(final WalletStore store) {
+         this.store = store;
+@@ -48,10 +50,9 @@ public final class WalletImpl implements Wallet {
+ 
+     private IdentityProvider<?> getProvider(final Identity identity) {
+         Class<? extends Identity> identityType = identity.getClass();
+-        return providers.values().stream()
+-                .filter(provider -> provider.getType().isAssignableFrom(identityType))
+-                .findFirst()
+-                .orElseThrow(() -> new IllegalArgumentException("No provider for identity type: " + identityType.getName()));
++        return providers.values().stream().filter(provider -> provider.getType().isAssignableFrom(identityType))
++                .findFirst().orElseThrow(
++                        () -> new IllegalArgumentException("No provider for identity type: " + identityType.getName()));
+     }
+ 
+     private InputStream serializeJson(final JsonObject identityJson) {

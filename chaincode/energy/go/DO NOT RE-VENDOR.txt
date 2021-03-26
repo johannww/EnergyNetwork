@@ -1,0 +1,8 @@
+The packages:
+
+./vendor/github.com/hyperledger/fabric-chaincode-go
+and
+./vendor/github.com/hyperledger/fabric-protos-go
+
+are modified according to the file 'vendor.diff'
+

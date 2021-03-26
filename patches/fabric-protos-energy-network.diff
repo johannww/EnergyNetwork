@@ -1,0 +1,26 @@
+diff --git a/peer/proposal_response.proto b/peer/proposal_response.proto
+index 4a29e9e..1a83696 100644
+--- a/peer/proposal_response.proto
++++ b/peer/proposal_response.proto
+@@ -51,6 +51,9 @@ message Response {
+ 
+     // A payload that can be used to include metadata with this response.
+     bytes payload = 3;
++
++    //JOHANN a priority set by the chaincode Response to be evaluated when ordering transactions
++    Priority priority = 4;
+ }
+ 
+ // ProposalResponsePayload is the payload of a proposal response.  This message
+@@ -91,3 +94,10 @@ message Endorsement {
+     // the endorser's certificate; ie, sign(ProposalResponse.payload + endorser)
+     bytes signature = 2;
+ }
++
++//JOHANN Priority Enum for transactions
++enum Priority{
++    HIGH = 0;
++    MEDIUM = 1;
++    LOW = 2;
++}
+\ No newline at end of file

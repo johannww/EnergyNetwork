@@ -1,0 +1,8 @@
+{
+    "index":{
+        "fields":["validated", "priceperkwh"]
+    },
+        "ddoc":"indexBuyBidDoc", 
+        "name":"indexBuyBid",
+        "type":"json"
+}

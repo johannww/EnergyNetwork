@@ -1,0 +1,88 @@
+diff --git a/pom.xml b/pom.xml
+index 9042e8c..d5f828e 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -642,13 +642,13 @@
+                             </execution>
+                         </executions>
+                     </plugin>
+-                    <plugin>
++                    <!---<plugin>
+                         <groupId>org.apache.maven.plugins</groupId>
+                         <artifactId>maven-gpg-plugin</artifactId>
+                         <configuration>
+                             <useAgent>true</useAgent>
+                         </configuration>
+-                        <version>1.6</version>  <!-- was 1.5 -->
++                        <version>1.6</version>  <was 1.5>
+                         <executions>
+                             <execution>
+                                 <id>sign-artifacts</id>
+@@ -658,7 +658,7 @@
+                                 </goals>
+                             </execution>
+                         </executions>
+-                    </plugin>
++                    </plugin>-->
+                     <plugin>
+                         <groupId>org.apache.maven.plugins</groupId>
+                         <artifactId>maven-source-plugin</artifactId>
+diff --git a/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixCredential.java b/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixCredential.java
+index 7d57964..87f4343 100644
+--- a/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixCredential.java
++++ b/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixCredential.java
+@@ -161,7 +161,7 @@ public class IdemixCredential {
+     /**
+      * @return A proto representation of this credential
+      */
+-    Idemix.Credential toProto() {
++    public Idemix.Credential toProto() {
+         Idemix.Credential.Builder builder = Idemix.Credential.newBuilder()
+                 .setA(IdemixUtils.transformToProto(A))
+                 .setB(IdemixUtils.transformToProto(B))
+@@ -174,4 +174,4 @@ public class IdemixCredential {
+ 
+         return builder.build();
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixIssuerPublicKey.java b/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixIssuerPublicKey.java
+index a5e3359..408f362 100644
+--- a/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixIssuerPublicKey.java
++++ b/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixIssuerPublicKey.java
+@@ -197,7 +197,7 @@ public class IdemixIssuerPublicKey {
+     /**
+      * @return A proto version of this issuer public key
+      */
+-     Idemix.IssuerPublicKey toProto() {
++     public Idemix.IssuerPublicKey toProto() {
+ 
+         Idemix.ECP[] ipkHAttrs = new Idemix.ECP[HAttrs.length];
+         for (int i = 0; i < HAttrs.length; i++) {
+diff --git a/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixPseudonym.java b/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixPseudonym.java
+index f38210d..6c8459c 100644
+--- a/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixPseudonym.java
++++ b/src/main/java/org/hyperledger/fabric/sdk/idemix/IdemixPseudonym.java
+@@ -54,7 +54,7 @@ public class IdemixPseudonym {
+     /**
+      * @return the secret randomness used to construct this pseudonym
+      */
+-     BIG getRandNym() {
++     public BIG getRandNym() {
+         return RandNym;
+     }
+ }
+diff --git a/src/main/java/org/hyperledger/fabric/sdk/transaction/TransactionContext.java b/src/main/java/org/hyperledger/fabric/sdk/transaction/TransactionContext.java
+index 012238d..9a0a92c 100644
+--- a/src/main/java/org/hyperledger/fabric/sdk/transaction/TransactionContext.java
++++ b/src/main/java/org/hyperledger/fabric/sdk/transaction/TransactionContext.java
+@@ -246,4 +246,8 @@ public class TransactionContext {
+     public Identities.SerializedIdentity getSerializedIdentity() {
+         return identity;
+     }
++
++    public SigningIdentity getSigningIdentity() {
++        return signingIdentity;
++    }
+ }  // end TransactionContext
