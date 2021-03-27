@@ -17,6 +17,8 @@ import (
 
 	st "energy/proto_structs"
 
+	"google.golang.org/protobuf/types/known/anypb"
+
 	"google.golang.org/protobuf/encoding/protojson"
 
 	"github.com/golang/protobuf/proto"
@@ -2268,23 +2270,43 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 			return chaincode.measureTimeDifferentAuctions(stub, repeatAuction)
 		} else if function == "testWorldStateLogic" {
 			return chaincode.testWorldStateLogic(stub)
+		} else if function == "sensorDeclareActiveTestContext" {
+			return chaincode.sensorDeclareActiveTestContext(stub, args[0])
+		} else if function == "publishSensorDataTestContext" {
+			versionInt, _ := strconv.Atoi(args[1])
+			version := int8(versionInt)
+			unit64, _ := strconv.ParseUint(args[2], 10, 32)
+			unit := uint32(unit64)
+			timestamp, _ := strconv.ParseUint(args[3], 10, 64)
+			value, _ := strconv.ParseFloat(args[4], 64)
+			eUint, _ := strconv.ParseUint(args[5], 10, 8)
+			e := uint8(eUint)
+			confidenceUint, _ := strconv.ParseUint(args[6], 10, 8)
+			confidence := uint8(confidenceUint)
+			dev, _ := strconv.ParseUint(args[7], 10, 32)
+			return chaincode.publishSensorDataTestContext(stub, args[0], version, unit, timestamp, value, e, confidence, uint32(dev))
 		} else if function == "registerSellerTestContext" {
-			windTurbinesNumber, _ := strconv.ParseUint(args[0], 10, 64)
-			solarPanelsNumber, _ := strconv.ParseUint(args[1], 10, 64)
-			return chaincode.registerSellerTestContext(stub, windTurbinesNumber, solarPanelsNumber)
+			windTurbinesNumber, _ := strconv.ParseUint(args[1], 10, 64)
+			solarPanelsNumber, _ := strconv.ParseUint(args[2], 10, 64)
+			return chaincode.registerSellerTestContext(stub, args[0], windTurbinesNumber, solarPanelsNumber)
 		} else if function == "publishEnergyGenerationTestContext" {
-			t0, _ := strconv.ParseUint(args[0], 10, 64)
-			t1, _ := strconv.ParseUint(args[1], 10, 64)
-			if len(args)%2 != 0 || len(args) > 2+len(EnergyTypes) {
+			t0, _ := strconv.ParseUint(args[1], 10, 64)
+			t1, _ := strconv.ParseUint(args[2], 10, 64)
+			if len(args)%2 == 0 || len(args) > 3+len(EnergyTypes) {
 				return shim.Error("Wrong number of arguments for function publishEnergyGenerationTestContext")
 			}
 			energyByTypeGeneratedKWH := make(map[string]float64)
-			for i := 2; i < len(args); i += 2 {
+			for i := 3; i < len(args); i += 2 {
 				energyByTypeGeneratedKWH[args[i]], _ = strconv.ParseFloat(args[i+1], 64)
 			}
-			return chaincode.publishEnergyGenerationTestContext(stub, t0, t1, energyByTypeGeneratedKWH)
+			return chaincode.publishEnergyGenerationTestContext(stub, args[0], t0, t1, energyByTypeGeneratedKWH)
+		} else if function == "registerSellBidTestContext" {
+			amountKWH, _ := strconv.ParseFloat(args[1], 64)
+			pricePerKWH, _ := strconv.ParseFloat(args[2], 64)
+			return chaincode.registerSellBidTestContext(stub, args[0], amountKWH, pricePerKWH, args[3])
+		} else if function == "getEnergyTransactionsFromSellBidNumbersTestContext" {
+			return chaincode.getEnergyTransactionsFromSellBidNumbersTestContext(stub, args[0], args[1:len(args)])
 		}
-
 	}
 	return shim.Error("Invalid invoke function name. Expecting \"invoke\" \"delete\" \"query\"")
 }
@@ -2441,12 +2463,14 @@ func (chaincode *EnergyChaincode) printDataQuantityByPartialCompositeKey(stub sh
 	}
 
 	dataQuantity := 0
+	var messageAux anypb.Any
 	for dataIterator.HasNext() {
 		queryResult, err := dataIterator.Next()
 		if err != nil {
 			return shim.Error(err.Error())
 		}
-		fmt.Println(string(queryResult.Value))
+		proto.Unmarshal(queryResult.Value, &messageAux)
+		fmt.Println(messageAux.String())
 		dataQuantity++
 	}
 
@@ -2486,12 +2510,14 @@ func (chaincode *EnergyChaincode) printDataQuantityByPartialSimpleKey(stub shim.
 	}
 
 	dataQuantity := 0
+	var messageAux anypb.Any
 	for dataIterator.HasNext() {
 		queryResult, err := dataIterator.Next()
 		if err != nil {
 			return shim.Error(err.Error())
 		}
-		fmt.Println(string(queryResult.Value))
+		proto.Unmarshal(queryResult.Value, &messageAux)
+		fmt.Println(messageAux.String())
 		dataQuantity++
 	}
 
@@ -2734,8 +2760,131 @@ func (chaincode *EnergyChaincode) testWorldStateLogic(stub shim.ChaincodeStubInt
 	return shim.Success(nil)
 }
 
-func (chaincode *EnergyChaincode) registerSellerTestContext(stub shim.ChaincodeStubInterface, windTurbinesNumber uint64, solarPanelsNumber uint64) pb.Response {
-	fmt.Println("---- registerSeller function beggining ----")
+/////////////////////////////// TEST FUNCTIONS BYPASSING cid.GetID() to avoid generating thousands of x509 certificates ///////////////////////////////////////////////
+
+func (chaincode *EnergyChaincode) sensorDeclareActiveTestContext(stub shim.ChaincodeStubInterface, sensorID string) pb.Response {
+	fmt.Println("---- sensorDeclareActiveTestContext function beggining ----")
+
+	//check if caller is a sensor
+	err := cid.AssertAttributeValue(stub, "energy.sensor", "true")
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	//get the SensorID and the MSP ID of the sensor to create the composite state key
+	mspID, err := cid.GetMSPID(stub)
+
+	//check if sensor is already in the database
+	key, err := stub.CreateCompositeKey("ActiveSensor", []string{mspID, sensorID})
+	isActive, err := stub.GetState(key)
+
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	fmt.Println("Key: " + key)
+	fmt.Println(fmt.Sprintf("Key (hex): %x", key))
+	fmt.Println("State: " + string(isActive))
+
+	if isActive == nil && err == nil {
+		//setting sensor to ACTIVE
+		//getting sensor coordinates and the influence radius from the certificate
+		xCert, _, _ := cid.GetAttributeValue(stub, "energy.x")
+		yCert, _, _ := cid.GetAttributeValue(stub, "energy.y")
+		zCert, _, _ := cid.GetAttributeValue(stub, "energy.z")
+		radiusCert, _, _ := cid.GetAttributeValue(stub, "energy.radius")
+
+		x, err := strconv.Atoi(xCert)
+		y, err := strconv.Atoi(yCert)
+		z, err := strconv.Atoi(zCert)
+		radius, err := strconv.ParseFloat(radiusCert, 64)
+
+		//putting the info in the struct ActiveSensor
+		activityData := st.ActiveSensor{
+			MspID:    mspID,
+			SensorID: sensorID,
+			IsActive: true,
+			X:        int32(x),
+			Y:        int32(y),
+			Z:        int32(z),
+			Radius:   radius,
+		}
+
+		//the struct will be saved as a Marshalled json
+		activityDataBytes, err := proto.Marshal(&activityData)
+		err = stub.PutState(key, activityDataBytes)
+		if err != nil {
+			return shim.Error(err.Error())
+		}
+		return shim.Success(nil)
+	}
+
+	return shim.Error("SENSOR IS DISABLED or ALREADY ACTIVE!")
+
+}
+
+func (chaincode *EnergyChaincode) publishSensorDataTestContext(stub shim.ChaincodeStubInterface, sensorID string, version int8, unit uint32, timestamp uint64, value float64, e uint8, confidence uint8, dev uint32) pb.Response {
+	fmt.Println("---- publishSensorDataTestContext function beggining ----")
+
+	//verify if data is still valid based on timestamp
+	currentTime := uint64(time.Now().Unix())
+	if currentTime > timestamp+acceptedDelay {
+		//return shim.Error("The data timestamp is too old!")
+		fmt.Println("The data timestamp is too old!")
+	}
+
+	//check if caller is a sensor
+	err := cid.AssertAttributeValue(stub, "energy.sensor", "true")
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	var activityData st.ActiveSensor
+
+	//get sensor id from the certificate
+	mspID, err := cid.GetMSPID(stub)
+	assetID := mspID + sensorID
+
+	//verify if sensor is active
+	key, err := stub.CreateCompositeKey("ActiveSensor", []string{mspID, sensorID})
+	activityDataBytes, err := stub.GetState(key)
+	err = proto.Unmarshal(activityDataBytes, &activityData)
+	if err != nil || activityData.IsActive != true {
+		return shim.Error("SENSOR IS NOT ACTIVE!")
+	}
+
+	//xCert, _, _ := cid.GetAttributeValue(stub, "energy.x")
+	//yCert, _, _ := cid.GetAttributeValue(stub, "energy.y")
+	//zCert, _, _ := cid.GetAttributeValue(stub, "energy.z")
+
+	//x, err := strconv.Atoi(xCert)
+	//y, err := strconv.Atoi(yCert)
+	//z, err := strconv.Atoi(zCert)
+
+	asset := st.SmartData{
+		AssetID:    assetID,
+		Version:    int32(version), //because of proto
+		Unit:       unit,
+		Timestamp:  timestamp,
+		Value:      value,
+		Error:      uint32(e),          //because of proto
+		Confidence: uint32(confidence), //because of proto
+		//X:          x,
+		//Y:          y,
+		//Z:          z,
+		Dev: dev,
+	}
+
+	assetJSON, err := proto.Marshal(&asset)
+	//key, err = stub.CreateCompositeKey(objectType, []string{mspID, sensorID, strconv.FormatUint(timestamp, 10)})
+	//we do not use CompositeKey, because CompositeKeys are not supported for the method shim.ChaincodeStubInterface.GetStateByRange()
+	key = "SmartData" + assetID + getMaxUint64CharsStrTimestamp(timestamp)
+	stub.PutState(key, assetJSON)
+	return shim.Success(nil)
+}
+
+func (chaincode *EnergyChaincode) registerSellerTestContext(stub shim.ChaincodeStubInterface, sellerID string, windTurbinesNumber uint64, solarPanelsNumber uint64) pb.Response {
+	fmt.Println("---- registerSellerTestContext function beggining ----")
 
 	//test if timestamp is recent enough comparing with the transaction creation timestamp
 	timestampStruct, err := stub.GetTxTimestamp()
@@ -2748,7 +2897,6 @@ func (chaincode *EnergyChaincode) registerSellerTestContext(stub shim.ChaincodeS
 
 	//get seller MSPID and their ID
 	mspIDSeller, err := cid.GetMSPID(stub)
-	sellerID, err := cid.GetID(stub)
 
 	//generate compositekey
 	key, err := stub.CreateCompositeKey("SellerInfo", []string{mspIDSeller, sellerID})
@@ -2787,7 +2935,7 @@ func (chaincode *EnergyChaincode) registerSellerTestContext(stub shim.ChaincodeS
 	return shim.Success(nil)
 }
 
-func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.ChaincodeStubInterface, t0 uint64, t1 uint64, energyByTypeGeneratedKWH map[string]float64) pb.Response {
+func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.ChaincodeStubInterface, sellerID string, t0 uint64, t1 uint64, energyByTypeGeneratedKWH map[string]float64) pb.Response {
 	fmt.Println("---- publishEnergyGenerationTestContext function beggining ----")
 
 	//test if t0 is greater than t1
@@ -2803,14 +2951,13 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 	}
 
 	//get Meter MSP and MeterID
-	meterID, err := cid.GetID(stub)
-	meterMspID, err := cid.GetMSPID(stub)
+	sellerMspID, err := cid.GetMSPID(stub)
 
-	fmt.Println("Meter MSP ID: " + meterMspID)
-	fmt.Println("Meter ID: " + meterID)
+	fmt.Println("Seller MSP ID: " + sellerMspID)
+	fmt.Println("Seller ID: " + sellerID)
 
 	//get SellerInfo
-	sellerInfo, err := getSellerInfo(stub, meterMspID, meterID)
+	sellerInfo, err := getSellerInfo(stub, sellerMspID, sellerID)
 
 	if err != nil {
 		return shim.Error(err.Error())
@@ -2934,8 +3081,79 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 	//return shim.Error("Testing time")
 }
 
+func (chaincode *EnergyChaincode) registerSellBidTestContext(stub shim.ChaincodeStubInterface, sellerID string, quantityKWH float64, pricePerKWH float64, energyType string) pb.Response {
+	fmt.Println("---- registerSellBidTestContext function beggining ----")
+
+	var sellerInfo st.SellerInfo
+
+	//only sellers can execute this function
+	err := cid.AssertAttributeValue(stub, "energy.seller", "true")
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	//get seller MSPID and their ID
+	mspIDSeller, err := cid.GetMSPID(stub)
+
+	//get SellerInfo from the seller
+	keySellerInfo, err := stub.CreateCompositeKey("SellerInfo", []string{mspIDSeller, sellerID})
+	sellerInfoBytes, err := stub.GetState(keySellerInfo)
+
+	//check if seller is registered
+	if sellerInfoBytes == nil || err != nil {
+		return shim.Error("Seller COULD NOT be fetched from the ledger!")
+	}
+
+	err = proto.Unmarshal(sellerInfoBytes, &sellerInfo)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	//check if seller has already produced the amount of energy type
+	fmt.Printf("sellerInfo.EnergyToSellByType['%s']: %f\n", energyType, sellerInfo.EnergyToSellByType[energyType])
+	fmt.Printf("amountKWH: %f\n", quantityKWH)
+	if sellerInfo.EnergyToSellByType[energyType] < quantityKWH {
+		return shim.Error("Seller does not have the indicated amount of " + energyType + " energy to sell!")
+	}
+
+	//subtract energy to be sold from SellerInfo
+	sellerInfo.EnergyToSellByType[energyType] -= quantityKWH
+	//update lastbid
+	sellerInfo.LastBidID++
+	//store updated SellerInfo
+	err = updateSellerInfo(stub, sellerInfo)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	sellBid := st.SellBid{
+		//IsSellBid:       true, //delete later
+		MspIDSeller:       mspIDSeller,
+		SellerID:          sellerID,
+		SellerBidNumber:   sellerInfo.LastBidID,
+		EnergyQuantityKWH: quantityKWH,
+		PricePerKWH:       pricePerKWH,
+		EnergyType:        energyType,
+	}
+
+	//generate compositekey for the sellbid
+	lastBidIDStr := strconv.FormatUint(uint64(sellerInfo.LastBidID), 10)
+	keySellBid, err := stub.CreateCompositeKey("SellBid", []string{mspIDSeller, sellerID, lastBidIDStr})
+
+	sellBidBytes, err := proto.Marshal(&sellBid)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+	err = stub.PutState(keySellBid, sellBidBytes)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	return shim.Success(nil)
+}
+
 func getSellerInfo(stub shim.ChaincodeStubInterface, sellerMspID string, sellerID string) (st.SellerInfo, error) {
-	fmt.Println("---- getSeller function beggining ----")
+	fmt.Println("---- getSellerInfo function beggining ----")
 
 	var sellerInfo st.SellerInfo
 	var sellerInfoBytes []byte
@@ -2953,4 +3171,31 @@ func getSellerInfo(stub shim.ChaincodeStubInterface, sellerMspID string, sellerI
 	}
 
 	return sellerInfo, nil
+}
+
+func (chaincode *EnergyChaincode) getEnergyTransactionsFromSellBidNumbersTestContext(stub shim.ChaincodeStubInterface, sellerID string, sellBidNumbers []string) pb.Response {
+	fmt.Println("---- getEnergyTransactionsFromSellBidNumbersTestContext function beggining ----")
+
+	err := cid.AssertAttributeValue(stub, "energy.seller", "true")
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	mspIDSeller, err := cid.GetMSPID(stub)
+
+	energyTransactionsJSON := ""
+	for _, sellBidNumber := range sellBidNumbers {
+		pbResponse := chaincode.getEnergyTransactionsFromFullSellBidKey(stub, mspIDSeller, sellerID, sellBidNumber)
+		if pbResponse.Status == shim.OK {
+			energyTransactionsJSONSellBid := string(pbResponse.GetPayload())
+			energyTransactionsJSON += energyTransactionsJSONSellBid + ","
+		}
+	}
+	if len(energyTransactionsJSON) > 0 {
+		energyTransactionsJSON = "[" + energyTransactionsJSON[:len(energyTransactionsJSON)-1] + "]"
+	} else {
+		energyTransactionsJSON = "[" + "]"
+	}
+
+	return shim.Success([]byte(energyTransactionsJSON))
 }

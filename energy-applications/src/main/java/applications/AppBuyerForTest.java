@@ -227,7 +227,7 @@ public class AppBuyerForTest {
                     IdemixIdentity idemixId;
                     try {
                         String buyerName = "buyer" + Integer.toString(threadNum);
-                        Path idemixCredsPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), buyerName, "msp");
+                        Path idemixCredsPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "buyer1", "msp");
                         String[] args = new String[] { "-cp", idemixCredsPath.toString(), "-msp", msp, "-u",
                                 String.format("%s-%s", buyerName, msp.toLowerCase()), "-pci", "UFSC", "-kwh", "10",
                                 "-price", "50", "-type", "solar", "-token", "tokentest1" };

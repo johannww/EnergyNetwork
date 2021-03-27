@@ -136,12 +136,13 @@ public class AppSellerForTest {
                 if (t.getName().equals("auctionPerformed")) {
                     try {
                         // prove to utility company
-                        String[] sellBidNumbers = new String[publishedBids.size()];
-                        int sellBidIndex = 0;
+                        String[] sellBidNumbers = new String[publishedBids.size()+1];
+                        sellBidNumbers[0] = sellerFullName;
+                        int sellBidIndex = 1;
                         for (PublishedSellBid publishedBid : publishedBids)
                             sellBidNumbers[sellBidIndex++] = Integer.toString(publishedBid.bidNumber);
 
-                        byte[] response = contract.createTransaction("getEnergyTransactionsFromSellBidNumbers")
+                        byte[] response = contract.createTransaction("getEnergyTransactionsFromSellBidNumbersTestContext")
                                 .evaluate(sellBidNumbers);
                         String energyTransactionsJson = new String(response, StandardCharsets.UTF_8);
                         requestPaymentForEnergyTransactions(sellerFullName, x509Id, energyTransactionsJson,
@@ -178,12 +179,12 @@ public class AppSellerForTest {
          * "-msp", "UFSC", "-u", "seller1-ufsc", "--sell", "-kwh", "10", "-price", "4",
          * "-type", "solar" };
          * 
-         * 
-         * args = new String[] { "-msp", "UFSC", "--basedir",
-         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sellers", "1",
-         * "--publishinterval", "2000", "--publishquantity", "1", "--paymentcompanyurl",
-         * "http://localhost:81" };
          */
+         args = new String[] { "-msp", "UFSC", "--basedir",
+         "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sellers", "1",
+         "--publishinterval", "2000", "--publishquantity", "1", "--paymentcompanyurl",
+         "http://localhost:81" };
+         
 
         ArgParserSellerTest testParser = new ArgParserSellerTest();
 
@@ -215,9 +216,9 @@ public class AppSellerForTest {
                     Identity identity;
                     try {
                         String sellerName = "seller" + Integer.toString(threadNum);
-                        Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), sellerName, "msp",
+                        Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "seller1", "msp",
                                 "signcerts", "cert.pem");
-                        Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), sellerName, "msp",
+                        Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "seller1", "msp",
                                 "keystore", "key.pem");
                         String[] args = new String[] { "--certificate", certPath.toString(), "--privatekey",
                                 pkPath.toString(), "-msp", "UFSC", "-u", String.format("%s-ufsc", sellerName), "--sell",
@@ -255,7 +256,7 @@ public class AppSellerForTest {
                         Transaction transaction = null;
                         try {
                             transaction = contract.createTransaction("registerSellerTestContext");
-                            transaction.submit("2", "2");
+                            transaction.submit(sellerFullName, "2", "2");
                         } catch (Exception e) {
                             System.out.println(String.format("Seller %d probably already registered: " + e.getMessage(),
                                     threadNum));
@@ -281,15 +282,15 @@ public class AppSellerForTest {
                             transaction = contract.createTransaction("publishEnergyGenerationTestContext");
                             generationEndTime = Long.toString(System.currentTimeMillis() / 1000L);
                             randomGeneratedEnergy = Double.toString(new Random().nextDouble() * 20 + 10);
-                            byte[] transactionResult = transaction.submit(generationBeginningTime, generationEndTime,
+                            transaction.submit(sellerFullName, generationBeginningTime, generationEndTime,
                                     "solar", randomGeneratedEnergy);
                             generationBeginningTime = Long.toString(System.currentTimeMillis() / 1000L);
                             transactionTimeWait += System.currentTimeMillis() - startTransaction;
 
                             // calling register sellbid transaction
                             startTransaction = System.currentTimeMillis();
-                            transaction = contract.createTransaction("registerSellBid");
-                            transaction.submit(cmd.getOptionValue("energyquantitykwh"),
+                            transaction = contract.createTransaction("registerSellBidTestContext");
+                            transaction.submit(sellerFullName, cmd.getOptionValue("energyquantitykwh"),
                                     cmd.getOptionValue("priceperkwh"), cmd.getOptionValue("energytype"));
                             transactionTimeWait += System.currentTimeMillis() - startTransaction;
                             publishedBids.add(new PublishedSellBid(publish + 1,
@@ -310,6 +311,7 @@ public class AppSellerForTest {
                              * energyTransactionsJson);
                              */
                             publish++;
+                            Thread.currentThread().join();
                             Thread.sleep(interval);
                         }
 

@@ -1,10 +1,9 @@
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-export BASE_DIR=../$SCRIPT_DIR
+export BASE_DIR=$(readlink -m $SCRIPT_DIR/..)
 export PATH=${BASE_DIR}/bin:$PATH
 export COMPOSE_PROJECT_NAME="fabric"
 unset MSYS_NO_PATHCONV
 export MSYS_NO_PATHCONV
-export BASE_DIR
 export FABRIC_CA_CLIENT_MSPDIR=.
 export BINDABLE_PORT=7000
 blueback="\0033[1;37;44m"

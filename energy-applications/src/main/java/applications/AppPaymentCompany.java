@@ -305,7 +305,8 @@ public class AppPaymentCompany {
 
         if (energyTransactions.size() > 0) {
             double soldKWH, pricePerKWH, sellerPayment = 0;
-            String calculatedSellerId = calculateSellerId(sellerCertificate);
+            //String calculatedSellerId = calculateSellerId(sellerCertificate); REACTIVATE THIS OUTSIDE TEST CONTEXT!!!!!
+            String calculatedSellerId = sellerName;
 
             // get seller funds to increment with the payment
             UserFunds sellerFunds = clientNameUser.get(sellerName);

@@ -116,10 +116,11 @@ public class AppSensorForTest {
          * "-msp", "UFSC", "-u", "sensor1-ufsc", "-unit", "3834792229",
          * "--publishinterval", "2", "--publishquantity", "50" };
          * 
-         * 
-         args = new String[] { "-msp", "UFSC", "--basedir",
-                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sensors", "1", "--unit",
-                "3834792229", "--publishinterval", "2", "--publishquantity", "1" };*/
+         
+        args = new String[] { "-msp", "UFSC", "--basedir",
+        "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sensors", "1",
+        "--unit", "3834792229", "--publishinterval", "2", "--publishquantity", "1" };*/
+         
 
         ArgParserSensorTest testParser = new ArgParserSensorTest();
 
@@ -149,15 +150,17 @@ public class AppSensorForTest {
                     // parsing sensor params
                     ArgParserSensor sensorParser = new ArgParserSensor();
                     Gateway.Builder builder;
+                    String sensorFullName;
                     try {
                         // file path credentials args
                         String sensorName = "sensor" + Integer.toString(threadNum);
-                        Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), sensorName, "msp",
+                        sensorFullName = String.format("%s-ufsc", sensorName);
+                        Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "sensor1", "msp",
                                 "signcerts", "cert.pem");
-                        Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), sensorName, "msp",
+                        Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "sensor1", "msp",
                                 "keystore", "key.pem");
                         String[] args = new String[] { "--certificate", certPath.toString(), "--privatekey",
-                                pkPath.toString(), "-msp", "UFSC", "-u", String.format("%s-ufsc", sensorName) };
+                                pkPath.toString(), "-msp", "UFSC", "-u", sensorFullName };
                         cmd = sensorParser.parseArgs(args);
 
                         // get the sensor's identity
@@ -169,7 +172,8 @@ public class AppSensorForTest {
                                 String.format("%snon-blocking-%s-connection-tls.json", dockerPrefix, msp));
 
                         // Configure the gateway connection used to access the network.
-                        builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile).discovery(dockerPrefix.length()>0);
+                        builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
+                                .discovery(dockerPrefix.length() > 0);
                     } catch (Exception e) {
                         e.printStackTrace();
                         throw new Error(
@@ -188,8 +192,8 @@ public class AppSensorForTest {
                         Transaction transaction = null;
 
                         try {
-                            transaction = contract.createTransaction("sensorDeclareActive");
-                            transaction.submit();
+                            transaction = contract.createTransaction("sensorDeclareActiveTestContext");
+                            transaction.submit(sensorFullName);
                         } catch (Exception e) {
                             System.out.println(
                                     String.format("Sensor %d probably already active: " + e.getMessage(), threadNum));
@@ -208,8 +212,8 @@ public class AppSensorForTest {
                                 SmartData smartData = getRandomSmartData(unit, threadNum, publish);
 
                                 startTransaction = System.currentTimeMillis();
-                                transaction = contract.createTransaction("publishSensorData");
-                                byte[] transactionResult = transaction.submit(Byte.toString(smartData.version),
+                                transaction = contract.createTransaction("publishSensorDataTestContext");
+                                transaction.submit(sensorFullName, Byte.toString(smartData.version),
                                         Long.toString(smartData.unit), Long.toString(smartData.timestamp),
                                         Double.toString(smartData.value), Byte.toString(smartData.error),
                                         Byte.toString(smartData.confidence), Integer.toString(smartData.dev));

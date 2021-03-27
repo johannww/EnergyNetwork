@@ -1,5 +1,5 @@
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
-export BASE_DIR=../$SCRIPT_DIR
+export BASE_DIR=$(readlink -m $SCRIPT_DIR/..)
 unset MSYS_NO_PATHCONV
 blueback="\0033[1;37;44m"
 resetvid="\0033[0m"
