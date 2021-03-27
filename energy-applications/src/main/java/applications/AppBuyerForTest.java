@@ -31,6 +31,7 @@ import org.hyperledger.fabric.protos.idemix.Idemix.IssuerPublicKey;
 import org.hyperledger.fabric.protos.msp.Identities.SerializedIdemixIdentity;
 import org.hyperledger.fabric.protos.msp.Identities.SerializedIdentity;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
+import org.hyperledger.fabric.sdk.identity.IdemixSigningIdentity;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 
 import applications.argparser.ArgParserBuyer;
@@ -47,17 +48,17 @@ public class AppBuyerForTest {
         public String paymentToken;
         public String transactionID;
         public IssuerPublicKey ipk;
-        public byte[] ipkOwnershipSignatureProof;
+        public IdemixSigningIdentity signingId;
         public double energyQuantityKWH;
         public double energyQuantitySettled;
 
         public PublishedBuyBid(String paymentCompanyId, String paymentToken, String transactionID, IssuerPublicKey ipk,
-                byte[] ipkOwnershipSignatureProof, double energyQuantityKWH) {
+                IdemixSigningIdentity signingId, double energyQuantityKWH) {
             this.paymentCompanyId = paymentCompanyId;
             this.paymentToken = paymentToken;
             this.transactionID = transactionID;
             this.ipk = ipk;
-            this.ipkOwnershipSignatureProof = ipkOwnershipSignatureProof;
+            this.signingId = signingId;
             this.energyQuantityKWH = energyQuantityKWH;
             this.energyQuantitySettled = 0.0;
         }
@@ -132,8 +133,7 @@ public class AppBuyerForTest {
     }
 
     private static void registerAuctionEventListener(Contract contract, List<PublishedBuyBid> publishedBids,
-            String buyerFullName)
-            throws InvalidArgumentException {
+            String buyerFullName) throws InvalidArgumentException {
 
         Consumer<ContractEvent> auctionPerfomedListener = new Consumer<ContractEvent>() {
 
@@ -149,8 +149,11 @@ public class AppBuyerForTest {
 
                             double energyQuantitySettledByTransactions = Double.parseDouble(new String(response));
                             if (energyQuantitySettledByTransactions > publishedBid.energyQuantitySettled) {
+                                int utilityNonce = getUtilityCompanyNonce();
+                                byte[] ipkOwnershipSignatureProof = publishedBid.signingId
+                                        .sign((publishedBid.transactionID + Integer.toString(utilityNonce)).getBytes());
                                 requestEnergyDiscount(buyerFullName, publishedBid.transactionID, publishedBid.ipk,
-                                        publishedBid.ipkOwnershipSignatureProof);
+                                        ipkOwnershipSignatureProof);
                                 publishedBid.energyQuantitySettled += energyQuantitySettledByTransactions;
                                 if (publishedBid.isFullySatisfied())
                                     publishedBids.remove(publishedBid);
@@ -291,31 +294,17 @@ public class AppBuyerForTest {
 
                             TransactionContext transactionContext = transaction.getTransactionContext();
 
-                            int utilityNonce = getUtilityCompanyNonce();
-
                             String transactionID = transaction.getTransactionId();
-                            byte[] ipkOwnershipSignatureProof = transactionContext
-                                    .sign((transactionID + Integer.toString(utilityNonce)).getBytes());
 
-                            // GET TRANSACTION PSEUDONYM FROM CONTEXT TO MAYBE SAVE IT
-                            SerializedIdentity serializedIdentity = transactionContext.getIdentity();
-                            ByteString serializedIdBytes = serializedIdentity.getIdBytes();
-                            serializedIdentity.getMspidBytes();
-
-                            SerializedIdemixIdentity serializedIdemixIdentity = SerializedIdemixIdentity
-                                    .parseFrom(serializedIdBytes);
-                            BIG nymXbuyer = BIG.fromBytes(serializedIdemixIdentity.getNymX().toByteArray());
-                            BIG nymYbuyer = BIG.fromBytes(serializedIdemixIdentity.getNymY().toByteArray());
-
-                            // get Ipk to send to utility company for verification
+                            // get Ipk and signing identity to send to utility company for verification
                             IssuerPublicKey ipk = idemixId.getIpk().toProto();
-                            // IdemixSigningIdentity signingId = (IdemixSigningIdentity) transactionContext
-                            // .getSigningIdentity();
+                            IdemixSigningIdentity signingId = (IdemixSigningIdentity) transactionContext
+                                    .getSigningIdentity();
 
                             // signingId.getNym();
 
                             publishedBids.add(new PublishedBuyBid(paymentCompanyId, token, transactionID, ipk,
-                                    ipkOwnershipSignatureProof, Double.parseDouble(energyQuantity)));
+                                    signingId, Double.parseDouble(energyQuantity)));
 
                             publish++;
                             Thread.sleep(interval);
