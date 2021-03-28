@@ -73,7 +73,7 @@ parseTestConfigMap buyers "${buyersKeyValues[@]}"
 
 
 #initialize peers and orderers
-echo -e $blueback \## "Restarting peers and orderers if not already started and measuring their files size "   $resetvid 
+echo -e $blueback \## "Restarting peers and orderers and measuring their files size "   $resetvid 
 echo 'Files size sum (du -hs) result from each container:' > $testFolder/initial-containers-filesystem-sizes.txt
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
     orgName=${parsedConfigMeFirst[$org,name]}
@@ -95,19 +95,22 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     done
 done
 
-echo -e $blueback \## "Restarting 'cli-applications' if not already started "   $resetvid
+echo -e $blueback \## "Restarting 'cli-applications' "   $resetvid
 docker restart cli-applications
 
 echo -e $blueback \## "measuring ecdsap256 speed - ONLY POSSIBLE IN cli-applications "   $resetvid
 docker exec cli-applications openssl speed ecdsap256 > $testFolder/ecdsap256-speed-cli-applications.txt
+
+
+#loggingFlags='-Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties'
 
 echo -e $blueback \## "Starting Utility and PaymentCompany applications "   $resetvid 
 #cd energy-applications
 #nohup mvn exec:java@utility -Dexec.mainClass="applications.AppUtility" -Dexec.args="-msp UFSC -port 80 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem"  > $BASE_DIR/test-reports/AppUtility.out 2>&1 &
 #nohup mvn exec:java@payment -Dexec.mainClass="applications.AppPaymentCompany" -Dexec.args="-msp UFSC -port 81 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" > $BASE_DIR/test-reports/AppPaymentCompany.out 2>&1 &
 export MSYS_NO_PATHCONV=1
-docker exec cli-applications bash -c 'nohup mvn exec:java@utility -Dexec.mainClass="applications.AppUtility" -Dexec.args="-msp UFSC -port 80 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" -Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties > /EnergyNetwork/test-reports/'$testNumber'/AppUtility.out 2>&1 &'
-docker exec cli-applications bash -c 'nohup mvn exec:java@payment -Dexec.mainClass="applications.AppPaymentCompany" -Dexec.args="-msp UFSC -port 81 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" -Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties > /EnergyNetwork/test-reports/'$testNumber'/AppPaymentCompany.out 2>&1 &'
+docker exec cli-applications bash -c 'nohup mvn exec:java@utility -Dexec.mainClass="applications.AppUtility" -Dexec.args="-msp UFSC -port 80 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlags' > /EnergyNetwork/test-reports/'$testNumber'/AppUtility.out 2>&1 &'
+docker exec cli-applications bash -c 'nohup mvn exec:java@payment -Dexec.mainClass="applications.AppPaymentCompany" -Dexec.args="-msp UFSC -port 81 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlags' > /EnergyNetwork/test-reports/'$testNumber'/AppPaymentCompany.out 2>&1 &'
 unset MSYS_NO_PATHCONV
 
 echo -e $blueback \## "Starting sensors, sellers and buyers applications"   $resetvid 
@@ -115,18 +118,20 @@ echo -e $blueback \## "Starting sensors, sellers and buyers applications"   $res
 #nohup mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp ${parsedTestCfg[sellers,msp]}  --basedir $BASE_DIR --sellers ${parsedTestCfg[sellers,quantity]} --publishinterval ${parsedTestCfg[sellers,publishinterval]}  --publishquantity ${parsedTestCfg[sellers,publishquantity]} --paymentcompanyurl $paymentUrl" > $BASE_DIR/test-reports/AppSellerForTest.out 2>&1 &
 #nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp ${parsedTestCfg[buyers,msp]} --basedir $BASE_DIR --buyers ${parsedTestCfg[buyers,quantity]} --publishinterval ${parsedTestCfg[buyers,publishinterval]}  --publishquantity ${parsedTestCfg[buyers,publishquantity]} --utilityurl $utilityUrl --paymentcompanyurl $paymentUrl" > $BASE_DIR/test-reports/AppBuyerForTest.out 2>&1 &
 export MSYS_NO_PATHCONV=1
-docker exec cli-applications bash -c 'nohup mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --dockernetwork" -Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest.out 2>&1 &'
-docker exec cli-applications bash -c 'nohup mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --dockernetwork" -Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest.out 2>&1 &'
-docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --dockernetwork" -Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest.out 2>&1 &'
-unset MSYS_NO_PATHCONV
 
+pidSensor=$(docker exec cli-applications bash -c 'nohup mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --dockernetwork" '$loggingFlags' > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest.out 2>&1 & echo $!')
+pidSeller=$(docker exec cli-applications bash -c 'nohup mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlags' > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest.out 2>&1 & echo $!')
+#docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp 'IDEMIXORG' --basedir /EnergyNetwork --buyers '1' --publishinterval '5000'  --publishquantity '10' --utilityurl http://localhost --paymentcompanyurl http://localhost:81 --dockernetwork" -Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties'
+pidBuyer=$(docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlags' > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest.out 2>&1 & echo $!')
+unset MSYS_NO_PATHCONV
+echo $pidBuyer
 echo -e $blueback \## "Starting PeriodicAuction application"  $resetvid 
 #nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval $auctionInterval --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" > $BASE_DIR/test-reports/AppPeriodicAuction.out 2>&1 &
 
 #nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval 50000 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" &
 
 export MSYS_NO_PATHCONV=1
-docker exec cli-applications bash -c 'nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" -Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1 &'
+docker exec cli-applications bash -c 'nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlags' > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1 &'
 unset MSYS_NO_PATHCONV
 #cd ..
 
@@ -141,7 +146,9 @@ df -h > $testFolder/df.txt
 echo '$OSTYPE:' $OSTYPE >$testFolder/operating-system.txt
 #comandos que garantem preferencia de processos... 
 
- 
+echo -e $blueback \## "Waiting for AppSensorTest, AppSellerTest and AppBuyerTest to finish "   $resetvid 
+docker exec cli-applications bash -c "tail --pid=$pidSensor -f /dev/null  && tail --pid=$pidSeller -f /dev/null  && tail --pid=$pidBuyer -f /dev/null"
+echo -e $blueback \## "Applications ended "   $resetvid 
 
 echo -e $blueback \## "TIRAR DAQUI final containers sizes "   $resetvid 
 for  ((org=0; org<$numberOfOrgs; org+=1)); do

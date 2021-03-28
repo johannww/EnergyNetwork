@@ -58,11 +58,11 @@ public class AppPeriodicAuction {
                 "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp", "-msp",
                 "UFSC", "-u", "admin1-ufsc", "-port", "80" };
         // file path credentials args
-        */args = new String[] { "--certificate",
+        args = new String[] { "--certificate",
                 "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\signcerts\\cert.pem",
                 "--privatekey",
                 "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\keystore\\key.pem", "-msp",
-                "UFSC", "--auctioninterval", "100000" };
+                "UFSC", "--auctioninterval", "100000" };*/
 
         // parsing utility params
         ArgParserPeriodicAuction auctionParser = new ArgParserPeriodicAuction();

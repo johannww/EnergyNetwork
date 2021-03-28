@@ -179,11 +179,11 @@ public class AppSellerForTest {
          * "-msp", "UFSC", "-u", "seller1-ufsc", "--sell", "-kwh", "10", "-price", "4",
          * "-type", "solar" };
          * 
-         */
+         
          args = new String[] { "-msp", "UFSC", "--basedir",
          "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sellers", "1",
          "--publishinterval", "2000", "--publishquantity", "1", "--paymentcompanyurl",
-         "http://localhost:81" };
+         "http://localhost:81" };*/
          
 
         ArgParserSellerTest testParser = new ArgParserSellerTest();
@@ -311,7 +311,6 @@ public class AppSellerForTest {
                              * energyTransactionsJson);
                              */
                             publish++;
-                            Thread.currentThread().join();
                             Thread.sleep(interval);
                         }
 

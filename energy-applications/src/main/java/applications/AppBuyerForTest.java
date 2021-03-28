@@ -93,23 +93,23 @@ public class AppBuyerForTest {
         return response;
     }
 
-    private static void putFundsOnPaymentAccount(double funds) throws Exception {
+    private static void putFundsOnPaymentAccount(double funds, String buyerFullName) throws Exception {
         // String utilityHttpAddress = cmd.getOptionValue("utilityhttpaddress");
 
-        JsonObject post = Json.createObjectBuilder().add("clientname", "buyer1-idemixorg").add("funds", funds).build();
+        JsonObject post = Json.createObjectBuilder().add("clientname", buyerFullName).add("funds", funds).build();
         postJsonToUrl(paymentUrl + "/putfunds", post);
     }
 
-    private static String requestPaymentToken() throws Exception {
+    private static String requestPaymentToken(String buyerFullName) throws Exception {
         String token = "";
-        JsonObject post = Json.createObjectBuilder().add("clientname", "buyer1-idemixorg").add("funds", 1000).build();
+        JsonObject post = Json.createObjectBuilder().add("clientname", buyerFullName).add("funds", 1000).build();
         token = postJsonToUrl(paymentUrl + "/gettoken", post);
         return token;
     }
 
-    private static void requestBuyBidValidation(String token) throws Exception {
+    private static void requestBuyBidValidation(String token, String buyerFullName) throws Exception {
 
-        JsonObject post = Json.createObjectBuilder().add("clientname", "buyer1-idemixorg").add("token", token).build();
+        JsonObject post = Json.createObjectBuilder().add("clientname", buyerFullName).add("token", token).build();
         postJsonToUrl(paymentUrl + "/validatebuybid", post);
 
     }
@@ -188,12 +188,12 @@ public class AppBuyerForTest {
          * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\idemixorg\\buyer1\\msp",
          * "-pci", "UFSC", "-token", "tokentest1", "-kwh", "10", "-price", "50",
          * "-type", "solar" };
-         * 
-         * args = new String[] { "-msp", "IDEMIXORG", "--basedir",
-         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--buyers", "1",
-         * "--publishinterval", "2", "--publishquantity", "50", "--utilityurl",
-         * "http://localhost", "--paymentcompanyurl", "http://localhost:81" };
-         */
+         
+         args = new String[] { "-msp", "IDEMIXORG", "--basedir",
+          "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--buyers", "1",
+          "--publishinterval", "2", "--publishquantity", "50", "--utilityurl",
+          "http://localhost", "--paymentcompanyurl", "http://localhost:81" };*/ 
+         
 
         ArgParserBuyerTest testParser = new ArgParserBuyerTest();
 
@@ -265,7 +265,7 @@ public class AppBuyerForTest {
                                 singleSignatureTime = 0, startSignature;
 
                         // Putting funds on buyer accounts to request token
-                        putFundsOnPaymentAccount(1000000);
+                        putFundsOnPaymentAccount(1000000, buyerFullName);
 
                         threadsBarrier.await();
                         startExecution = System.currentTimeMillis();
@@ -275,7 +275,7 @@ public class AppBuyerForTest {
                         Thread.sleep(new Random().nextInt(500) + 2000);
                         while (publish < maxPublish) {
                             // Request token to Payment Company
-                            String token = requestPaymentToken();
+                            String token = requestPaymentToken(buyerFullName);
 
                             // Submit BuyBid
                             startTransaction = System.currentTimeMillis();
@@ -290,7 +290,7 @@ public class AppBuyerForTest {
                             transactionTimeWait += System.currentTimeMillis() - startTransaction;
 
                             // Request BuyBid validation to the Payment Company
-                            requestBuyBidValidation(token);
+                            requestBuyBidValidation(token, buyerFullName);
 
                             TransactionContext transactionContext = transaction.getTransactionContext();
 
