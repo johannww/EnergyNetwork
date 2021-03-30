@@ -7,9 +7,10 @@ ARG UBUNTU_VERSION=20.04
 FROM ubuntu:${UBUNTU_VERSION}
 
 RUN apt update
-RUN apt install default-jre -y
-RUN apt install default-jdk -y
-ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64/
+RUN apt install openjdk-13-jre -y
+RUN apt install openjdk-13-jdk -y
+ENV JAVA_HOME=/usr/lib/jvm/java-13-openjdk-amd64/
+ENV PATH=$PATH:$JAVA_HOME/bin
 
 ENV MAVEN_VERSION=3.6.3-1
 ENV GIT_VERSION=1:2.25.1-1ubuntu3.1

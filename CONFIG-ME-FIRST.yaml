@@ -1,3 +1,4 @@
+#PUT enough organization with peers to satisfy the ENDORSEMENT policies
 organizations:
     - name: ufsc
       admin-quantity: 1

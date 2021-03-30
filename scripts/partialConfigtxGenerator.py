@@ -59,6 +59,12 @@ for org in parsedPreConfig["organizations"]:
     orgConfigPart = orgConfigPart[:orderSectionBeginning] + orderer + orgConfigPart[orderSectionBeginning:]
 
     raftConsentersSection = raftConsentersTemplate.replace("##ORDERER##", "orderer{}".format(ordererNumber)).replace("org", orgName).replace("##BASE_DIR##", baseDir) + raftConsentersSection
+  
+  #if org does not have peers
+  if org["peer-quantity"] < 1:
+    anchorPeerBeginning = orgConfigPart.find("AnchorPeers:")
+    orgConfigPart = orgConfigPart[:anchorPeerBeginning]
+
   #if organization uses idemix
   try:
     if org["msptype"] == "idemix":

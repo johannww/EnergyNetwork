@@ -105,8 +105,6 @@ export FABRIC_CA_CLIENT_TLS_CERTFILES=$PATH_CERT_ADM_TLS
 export FABRIC_CA_CLIENT_HOME=$PATH_MSP_ADM_TLS
 fabric-ca-client enroll -u https://tls-ca-admin:tls-ca-adminpw@0.0.0.0:7052 
 
-
-
 #
 # GENERATING THE ROOT CERTIFICATE AUTHORITIES
 # ONE FOR EACH ORGANIZATION
@@ -451,8 +449,8 @@ done
 #
 # CREATING THE 'connection-tls.json' files for the applications SDKs
 #
-echo -e $blueback \# "Creating organizations LOCALHOST 'connections-tls.json' in folder 'generated-connections-tls'"$resetvid
-mkdir -p $BASE_DIR/generated-connections-tls
+echo -e $blueback \# "Creating organizations LOCALHOST 'connections-tls.json' in folder 'generated-connection-tls'"$resetvid
+mkdir -p $BASE_DIR/generated-connection-tls
 for key in ${!orgsRootCAPorts[@]}; do
     caPortsArgs="$caPortsArgs\"$key\":${orgsRootCAPorts[$key]},"
 done
@@ -535,6 +533,9 @@ while true; do
             docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer$i-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower peer channel join -b /tmp/hyperledger/$orgNameLower/admin1/$channelID.block   
         done
 
+        #
+        # Setting ANCHOR PEERS for organizations in the channel
+        #
         if (( nPeers > 0 )); then
             echo -e $blueback \# "Setting peer1-$orgNameLower as ANCHOR PEER in org $orgNameLower for channel $channelID" $resetvid
             docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower bash -c "mkdir -p art && peer channel fetch config art/config_block.pb -o $defaultOrderer:7050 -c $channelID --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem"
@@ -553,13 +554,7 @@ while true; do
 
             docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower peer channel update -f art/config_update_in_envelope.pb -c canal -o $defaultOrderer:7050 --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
         fi 
-    done
-
-    #
-    # Setting ANCHOR PEERS for organizations in the channel
-    #
-    
-
+    done 
 
     #
     # PACKING, INSTALLING AND APPROVING ALL CHAINCODE 

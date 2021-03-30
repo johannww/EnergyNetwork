@@ -107,7 +107,7 @@ public class AppSeller {
         }
     }
 
-    private static void registerAuctionEventListener(Contract contract, X509Identity x509Id,
+    /*private static void registerAuctionEventListener(Contract contract, X509Identity x509Id,
             List<PublishedSellBid> publishedBids, String sellerFullName) {
 
         Consumer<ContractEvent> auctionPerfomedListener = new Consumer<ContractEvent>() {
@@ -135,7 +135,7 @@ public class AppSeller {
             }
         };
         contract.addContractListener(auctionPerfomedListener, "auctionPerformed");
-    }
+    }*/
 
     public static void main(String[] args) throws Exception {
 

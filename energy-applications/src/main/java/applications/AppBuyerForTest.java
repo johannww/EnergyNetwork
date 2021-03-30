@@ -7,20 +7,25 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.SecureRandom;
+import java.security.Security;
 import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Properties;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CyclicBarrier;
 import java.util.function.Consumer;
 
 import javax.json.Json;
 import javax.json.JsonObject;
 
-import com.google.protobuf.ByteString;
-
 import org.apache.commons.cli.CommandLine;
-import org.apache.milagro.amcl.FP256BN.BIG;
+import org.bouncycastle.crypto.CryptoServicesRegistrar;
+import org.bouncycastle.crypto.prng.BasicEntropySourceProvider;
+import org.bouncycastle.crypto.prng.EntropySourceProvider;
+import org.bouncycastle.util.Strings;
 import org.hyperledger.fabric.gateway.Contract;
 import org.hyperledger.fabric.gateway.ContractEvent;
 import org.hyperledger.fabric.gateway.Gateway;
@@ -28,8 +33,6 @@ import org.hyperledger.fabric.gateway.IdemixIdentity;
 import org.hyperledger.fabric.gateway.Network;
 import org.hyperledger.fabric.gateway.Transaction;
 import org.hyperledger.fabric.protos.idemix.Idemix.IssuerPublicKey;
-import org.hyperledger.fabric.protos.msp.Identities.SerializedIdemixIdentity;
-import org.hyperledger.fabric.protos.msp.Identities.SerializedIdentity;
 import org.hyperledger.fabric.sdk.exception.InvalidArgumentException;
 import org.hyperledger.fabric.sdk.identity.IdemixSigningIdentity;
 import org.hyperledger.fabric.sdk.transaction.TransactionContext;
@@ -37,6 +40,7 @@ import org.hyperledger.fabric.sdk.transaction.TransactionContext;
 import applications.argparser.ArgParserBuyer;
 import applications.identity.ApplicationIdentityProvider;
 import applications.testargparser.ArgParserBuyerTest;
+import jdk.nashorn.internal.runtime.Property;
 
 public class AppBuyerForTest {
 
@@ -191,8 +195,8 @@ public class AppBuyerForTest {
          
          args = new String[] { "-msp", "IDEMIXORG", "--basedir",
           "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--buyers", "1",
-          "--publishinterval", "2", "--publishquantity", "50", "--utilityurl",
-          "http://localhost", "--paymentcompanyurl", "http://localhost:81" };*/ 
+         "--publishinterval", "2000", "--publishquantity", "50", "--utilityurl",
+          "http://localhost", "--paymentcompanyurl", "http://localhost:81" };*/
          
 
         ArgParserBuyerTest testParser = new ArgParserBuyerTest();
@@ -207,6 +211,26 @@ public class AppBuyerForTest {
         paymentUrl = cmd.getOptionValue("paymentcompanyurl");
         utilityUrl = cmd.getOptionValue("utilityurl");
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
+
+
+        /*final Set<String> algorithms = Security.getAlgorithms("SecureRandom");
+
+        for (String algorithm : algorithms) {
+          System.out.println(algorithm);
+        }
+    
+        final String defaultAlgorithm = new SecureRandom().getAlgorithm();
+        System.out.println("default: " + defaultAlgorithm);
+    
+        for (int i = 0; i < 50; i++) {
+            System.out.println(new SecureRandom().generateSeed(32));
+        }
+
+        System.out.println( System.getProperty("securerandom.source"));
+        System.out.println( System.getProperty("java.security.egd"));
+
+        System.exit(1);*/
+
 
         CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
         Thread[] threads = new Thread[THREAD_NUM + 1];
