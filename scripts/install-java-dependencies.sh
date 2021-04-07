@@ -1,3 +1,4 @@
+#!/bin/bash
 unset MSYS_NO_PATHCONV
 blueback="\0033[1;37;44m"
 resetvid="\0033[0m"

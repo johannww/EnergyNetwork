@@ -1,3 +1,4 @@
+#!/bin/bash
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 export BASE_DIR=$(readlink -m $SCRIPT_DIR/..)
 export PATH=${BASE_DIR}/bin:$PATH
@@ -52,10 +53,7 @@ docker-compose -f docker-compose.yml down --remove-orphans
 # AND GENERATES A configtx.yaml WITH THE ORGANIZATIONS
 # AND RAFT CONSENTERS INCLUDED. 
 # IT ALSO READS THE 
-# Located in "generated-config/configtx.yaml"
-#
-# THE FILE "orgsNamesAndMembers.txt" IS ALSO GENERATED
-# BY THE PYTHON SCRIPT FOR THIS SHELL SCRIPT TO READ
+# Located in "config-template/configtxTemplate.yaml"
 #
 python $BASE_DIR/scripts/partialConfigTxGenerator.py "$BASE_DIR"
 
@@ -460,10 +458,10 @@ done
 for key in ${!orgsPeerPorts[@]}; do
     peerPortsArgs="$peerPortsArgs\"$key\":${orgsPeerPorts[$key]},"
 done
-python ./scripts/localhostAppConnectionsCreator.py --basedir $BASE_DIR --caports \{${caPortsArgs%?}\} --ordererports \{${ordPortsArgs%?}\} --peerports \{${peerPortsArgs%?}\}
+python $BASE_DIR/scripts/localhostAppConnectionsCreator.py --basedir $BASE_DIR --caports \{${caPortsArgs%?}\} --ordererports \{${ordPortsArgs%?}\} --peerports \{${peerPortsArgs%?}\}
 
 echo -e $blueback \# "Creating organizations DOCKER 'connections-tls.json' in folder 'generated-connections-tls'"$resetvid
-python ./scripts/dockerAppConnectionsCreator.py --basedir $BASE_DIR
+python $BASE_DIR/scripts/dockerAppConnectionsCreator.py --basedir $BASE_DIR
 
 echo -e $blueback \# "Copying organizations 'connections-tls.json' to 'energy-applications/cfgs'"$resetvid
 cp $BASE_DIR/generated-connection-tls/*.*  $BASE_DIR/energy-applications/cfgs/

@@ -1,3 +1,4 @@
+#!/bin/bash
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 export BASE_DIR=$(readlink -m $SCRIPT_DIR/..)
 unset MSYS_NO_PATHCONV
@@ -83,7 +84,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         docker restart orderer$i-$orgName 
         docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" orderer$i-$orgName > $testFolder/stats-orderer$i-$orgName.txt &
         echo -n "orderer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
-        docker exec orderer$i-$orgName du -hs >> $testFolder/initial-containers-filesystem-sizes.txt
+        docker exec orderer$i-$orgName du -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
@@ -91,7 +92,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         docker restart peer$i-$orgName
         docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" peer$i-$orgName > $testFolder/stats-peer$i-$orgName.txt &
         echo -n "peer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
-        docker exec peer$i-$orgName du -hs >> $testFolder/initial-containers-filesystem-sizes.txt
+        docker exec peer$i-$orgName du -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
 done
 
@@ -102,8 +103,8 @@ echo -e $blueback \## "measuring ecdsap256 speed - ONLY POSSIBLE IN cli-applicat
 docker exec cli-applications openssl speed ecdsap256 > $testFolder/ecdsap256-speed-cli-applications.txt
 
 
-loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
-loggingFlag2="-Dlog4j.configuration=log4j.properties"
+#loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
+#loggingFlag2="-Dlog4j.configuration=log4j.properties"
 
 echo -e $blueback \## "Starting Utility and PaymentCompany applications "   $resetvid 
 #cd energy-applications
@@ -121,8 +122,11 @@ echo -e $blueback \## "Starting sensors, sellers and buyers applications"   $res
 export MSYS_NO_PATHCONV=1
 
 (docker exec cli-applications bash -c 'nohup mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest.out 2>&1') &
+pidSensor=$!
 (docker exec cli-applications bash -c 'nohup mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest.out 2>&1') &
+pidSeller=$!
 (docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest.out 2>&1') &
+pidBuyer=$!
 #pidBuyer=$(docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTestX509" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTestX509.out 2>&1 & echo $!')
 #docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp 'IDEMIXORG' --basedir /EnergyNetwork --buyers '1' --publishinterval '5000'  --publishquantity '10' --utilityurl http://localhost --paymentcompanyurl http://localhost:81 --dockernetwork" -Djava.util.logging.config.file=commons-logging.properties -Dlog4j.configuration=log4j.properties'
 unset MSYS_NO_PATHCONV
@@ -149,7 +153,9 @@ echo '$OSTYPE:' $OSTYPE >$testFolder/operating-system.txt
 #comandos que garantem preferencia de processos... 
 
 echo -e $blueback \## "Waiting for AppSensorTest, AppSellerTest and AppBuyerTest to finish "   $resetvid 
-wait
+wait $pidSensor 
+wait $pidSeller 
+wait $pidBuyer
 echo -e $blueback \## "Applications ended "   $resetvid 
 
 echo -e $blueback \## "TIRAR DAQUI final containers sizes "   $resetvid 

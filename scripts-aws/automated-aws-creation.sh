@@ -1,9 +1,10 @@
-BASE_DIR=/d/UFSC/Mestrado/Hyperledger/Fabric/EnergyNetwork
+#!/bin/bash
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+export BASE_DIR=$(readlink -m $SCRIPT_DIR/..)
 export PATH=${BASE_DIR}/bin:$PATH
 export COMPOSE_PROJECT_NAME="fabric"
 unset MSYS_NO_PATHCONV
 export MSYS_NO_PATHCONV
-export BASE_DIR
 export FABRIC_CA_CLIENT_MSPDIR=.
 export BINDABLE_PORT=7000
 blueback="\0033[1;37;44m"
@@ -13,6 +14,7 @@ print_usage() {
  printf "Usage: pass '-e' to NOT register and enroll with the CAs, otherwise all credentials will be enrolled with the CAs"
 }
 
+registerAndEnroll='true'
 while getopts 'e' flag; do
   case "${flag}" in
     e) registerAndEnroll='false' ;;
@@ -24,15 +26,14 @@ done
 
 findOrgIndexByName () {
     for ((i=0; i<$numberOfOrgs; i+=1)); do
-        if [ $1 = ${matrix[$i,0]} ]
+        if [ $1 = ${matrix[$i,name]} ]
         then
             echo $i
         fi
     done
 }
 
-docker-compose -f docker-compose.yml down --remove-orphans
-#chown -R labsec:labsec hyperledger/
+docker-compose -f docker-compose-aws.yml down --remove-orphans
 #find hyperledger/ -type f ! \( -iname "*.yaml" -or -iname "*.go" -or -iname "*.mod" -or -iname "*.sum" \) -delete
 #find hyperledger/ -type l ! \( -iname "*.yaml" -or -iname "*.go" -or -iname "*.mod" -or -iname "*.sum" \) -delete
 #rm -r `find hyperledger/ -name couchdb -type d`
@@ -40,42 +41,58 @@ docker-compose -f docker-compose.yml down --remove-orphans
 
 
 
-#find hyperledger/ -type f -delete
-#find hyperledger/ -type l -delete
-#find hyperledger/ -type d -delete
+find hyperledger/ -type f -delete
+find hyperledger/ -type l -delete
+find hyperledger/ -type d -delete
 
 
-
-#
-# Calling python script that reads CONFIG-ME-FIRST
-# AND GENERATES A configtx.yaml WITH THE ORGANIZATIONS
-# AND RAFT CONSENTERS INCLUDED. 
-# IT ALSO READS THE 
-# Located in "generated-config/configtx.yaml"
-#
-# THE FILE "orgsNamesAndMembers.txt" IS ALSO GENERATED
-# BY THE PYTHON SCRIPT FOR THIS SHELL SCRIPT TO READ
-#
-python $BASE_DIR/scripts/partialConfigTxGenerator.py "$BASE_DIR"
-
-IFS=$'\n' GLOBIGNORE='*' command eval  'names=($(cat orgNamesAndMembers.txt))'
 declare -A matrix
 declare -A orgsRootCAPorts
-declare -A orgsPeerPorts
-declare -A orgsOrdPorts
+declare -A orgsOrdHosts
+declare -A orgsPeerHosts
 
-for lineNumber in ${!names[@]}; do
-    colNumber=0
-    for col in ${names[lineNumber]}; do
-        matrix[$lineNumber,$colNumber]=$col
-        echo ${matrix[$lineNumber,$colNumber]}
-        colNumber=$((colNumber+1))
+
+echo -e $blueback \##Parsing CONFIG-ME-FIRST.yaml with 'shyaml' $resetvid
+configMeFirstText=`cat CONFIG-ME-FIRST.yaml`
+numberOfOrgs=`echo "$configMeFirstText" | shyaml get-length organizations`
+for  ((org=0; org<$numberOfOrgs; org+=1)); do
+    keyValues=( $(echo "$configMeFirstText" | shyaml key-values organizations.$org) )
+    keyValueIndex=0
+    for keyValue in ${keyValues[@]}; do
+        if [ $(($keyValueIndex%2)) == 0 ]; then
+            key=$keyValue
+        else
+            value=$keyValue
+            matrix[$org,${key%?}]=${value%?}
+        fi
+
+        keyValueIndex=$((keyValueIndex+1))
     done
+    matrix[$org,${key%?}]=${value}
+    #EXIT if an organization does not have any admin
+    if (( ${matrix[$org,admin-quantity]} < 1 )); then
+        echo -e $blueback \##Organization ${matrix[$org,name]} must have AT LEAST 1 admin $resetvid
+        exit 1
+    fi
 done
-numberOfOrgs=$lineNumber+1
 
-rm orgNamesAndMembers.txt
+#
+# INITATING THE AWS INSTANCES FOR EVERY PEER AND ORDERER
+#
+for  ((org=0; org<$numberOfOrgs; org+=1)); do
+    orgName=${matrix[$org,name]}
+    nPeers=${matrix[$org,peer-quantity]}
 
+    for ((i=1; i<=$nPeers; i+=1)); do
+        orgsPeerHosts[peer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh peer$i-$orgName)
+    done
+
+    nOrds=${matrix[$org,orderer-quantity]}
+    for ((i=1; i<=$nOrds; i+=1)); do
+        orgsOrdHosts[orderer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh orderer$i-$orgName)
+    done
+
+done
 
 #
 # GENERATING THE TLS CERTIFICATE AUTHORITIY
@@ -83,7 +100,7 @@ rm orgNamesAndMembers.txt
 #
 echo -e $blueback \##Configuring the CA-TLS $resetvid
 echo -e $blueback \# Turning on CA-TLS$resetvid
-docker-compose -f docker-compose.yml up -d ca-tls
+docker-compose -f docker-compose-aws.yml up -d ca-tls
 sleep 2s
 docker logs ca-tls
 echo -e $blueback \# Downloading CA-TLS admin certificate $resetvid
@@ -93,34 +110,32 @@ export FABRIC_CA_CLIENT_TLS_CERTFILES=$PATH_CERT_ADM_TLS
 export FABRIC_CA_CLIENT_HOME=$PATH_MSP_ADM_TLS
 fabric-ca-client enroll -u https://tls-ca-admin:tls-ca-adminpw@0.0.0.0:7052 
 
-
-
 #
 # GENERATING THE ROOT CERTIFICATE AUTHORITIES
 # ONE FOR EACH ORGANIZATION
 #
 echo -e $blueback \## Configuring organization ROOT CAs  $resetvid
 for  ((l=0; l<$numberOfOrgs; l+=1)); do
-    export ORG_NAME=${matrix[$l,0]}
+    export ORG_NAME=${matrix[$l,name]}
     export BINDABLE_PORT
-    echo -e $blueback \# Mudando nome do servico da RCA no arquivo docker-compose.yml $resetvid
-    perl -pi -e 's/rca:/rca-'$ORG_NAME':/g' docker-compose.yml
+    echo -e $blueback \# "Changing RCA service name in file 'docker-compose-aws.yml'" $resetvid
+    perl -pi -e 's/rca:/rca-'$ORG_NAME':/g' docker-compose-aws.yml
     sleep 1s
     echo -e $blueback \# pre-initializaing RCA-$ORG_NAME $resetvid
     export INIT_OR_START="init"
-    docker-compose -f docker-compose.yml up -d rca-$ORG_NAME
+    docker-compose -f docker-compose-aws.yml up -d rca-$ORG_NAME
     echo -e $blueback \# Editing RCA-$ORG_NAME fabric-ca-server-config.yaml affiliations $resetvid
     python $BASE_DIR/scripts/editRootCaAfiiliations.py "$ORG_NAME" "$BASE_DIR/hyperledger/$ORG_NAME/ca/crypto/"
     echo -e $blueback \# pre-initializaing RCA-$ORG_NAME $resetvid
     export INIT_OR_START="start"
-    docker-compose -f docker-compose.yml up -d rca-$ORG_NAME
-    perl -pi -e 's/rca-'$ORG_NAME':/rca:/g' docker-compose.yml
+    docker-compose -f docker-compose-aws.yml up -d rca-$ORG_NAME
+    perl -pi -e 's/rca-'$ORG_NAME':/rca:/g' docker-compose-aws.yml
     sleep 1s
     docker logs rca-$ORG_NAME
-    echo -e $blueback \# Configurando o ambiente da RCA-$ORG_NAME $resetvid
+    echo -e $blueback \# Configuring RCA-$ORG_NAME $resetvid
     export FABRIC_CA_CLIENT_TLS_CERTFILES=${BASE_DIR}/hyperledger/$ORG_NAME/ca/crypto/ca-cert.pem
     export FABRIC_CA_CLIENT_HOME=${BASE_DIR}/hyperledger/$ORG_NAME/ca/admin/msp
-    echo -e $blueback \# Criando o certificado do admin da RCA-$ORG_NAME $resetvid
+    echo -e $blueback \# Creating RCA-$ORG_NAME "admin's" certificate $resetvid
     fabric-ca-client enroll -u https://rca-$ORG_NAME-admin:rca-$ORG_NAME-adminpw@0.0.0.0:$BINDABLE_PORT
     orgsRootCAPorts[$ORG_NAME]=$BINDABLE_PORT
     BINDABLE_PORT=$(($BINDABLE_PORT+1))
@@ -131,7 +146,6 @@ done
 # REGISTERING ADMINS, CLIENTS, ORDERERS AND PEERS
 # IN THEIR RESPECTIVE CERTIFICATE AUTHORITY
 #
-
 registerByRole () {
     orgName=$1
     role=$2
@@ -150,51 +164,50 @@ registerByRole () {
     export FABRIC_CA_CLIENT_TLS_CERTFILES=${BASE_DIR}/hyperledger/$orgName/ca/crypto/ca-cert.pem
     export FABRIC_CA_CLIENT_HOME=${BASE_DIR}/hyperledger/$orgName/ca/admin/msp
     fabric-ca-client register --id.name $roleAndNumber-$orgName --id.secret $roleAndNumber-$orgName  --id.type $orgUnit --id.affiliation $orgName --id.attrs "$idAttrs" -u https://0.0.0.0:${orgsRootCAPorts[$orgName]}
-
 }
 
 if [ $registerAndEnroll != "false" ]; then
     echo -e $blueback \##Registering ALL certificates $resetvid
     for  ((l=0; l<$numberOfOrgs; l+=1)); do
-        orgName=${matrix[$l,0]}
-        echo -e $blueback \##Registro de certificados admins $orgName $resetvid
-        nAdms=${matrix[$l,1]}
+        orgName=${matrix[$l,name]}
+        echo -e $blueback \##Registering admins $orgName certificates $resetvid
+        nAdms=${matrix[$l,admin-quantity]}
         for ((i=1; i<=$nAdms; i+=1)); do
             registerByRole $orgName "admin" "admin$i" '"hf.Registrar.Roles=client,peer,orderer",hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,energy.admin=true:ecert,energy.init=true:ecert,energy.paymentcompany=true:ecert,energy.utility=true:ecert,role=2'
         done
 
-        echo -e $blueback \##Registro de certificados clients $orgName $resetvid
-        nClients=${matrix[$l,2]}
+        echo -e $blueback \##Registering clients $orgName certificates $resetvid
+        nClients=${matrix[$l,client-quantity]}
         for ((i=1; i<=$nClients; i+=1)); do
         registerByRole $orgName "client" "client$i" ""
         done
 
-        echo -e $blueback \##Registro de certificados orderers $orgName $resetvid
-        nOrds=${matrix[$l,3]}
+        echo -e $blueback \##Registering orderers $orgName certificates $resetvid
+        nOrds=${matrix[$l,orderer-quantity]}
         for ((i=1; i<=$nOrds; i+=1)); do
             registerByRole $orgName "orderer" "orderer$i" ""
         done
 
-        echo -e $blueback \##Registro de certificados peers $orgName $resetvid
-        nPeers=${matrix[$l,4]}
+        echo -e $blueback \##Registering peers $orgName certificates $resetvid
+        nPeers=${matrix[$l,peer-quantity]}
         for ((i=1; i<=$nPeers; i+=1)); do
             registerByRole $orgName "peer" "peer$i" ""
         done
 
-        echo -e $blueback \##Registro de certificados buyers $orgName $resetvid
-        nBuyers=${matrix[$l,5]}
+        echo -e $blueback \##Registering buyers $orgName certificates $resetvid
+        nBuyers=${matrix[$l,buyer-quantity]}
         for ((i=1; i<=$nBuyers; i+=1)); do
             registerByRole $orgName "buyer" "buyer$i" 'energy.buyer=true:ecert'
         done
 
-        echo -e $blueback \##Registro de certificados sellers $orgName $resetvid
-        nSellers=${matrix[$l,6]}
+        echo -e $blueback \##Registering sellers $orgName certificates $resetvid
+        nSellers=${matrix[$l,seller-quantity]}
         for ((i=1; i<=$nSellers; i+=1)); do
             registerByRole $orgName "seller" "seller$i" 'energy.seller=true:ecert'
         done
 
-        echo -e $blueback \##Registro de certificados sensors $orgName $resetvid
-        nSensors=${matrix[$l,7]}
+        echo -e $blueback \##Registering sensors $orgName certificates $resetvid
+        nSensors=${matrix[$l,sensor-quantity]}
         for ((i=1; i<=$nSensors; i+=1)); do
             xRandom=$((1 + $RANDOM % 100))
             yRandom=$((1 + $RANDOM % 100))
@@ -217,10 +230,13 @@ enrollByRole () {
     role=$3
     roleAndNumber=$4
     enrollType=$5
+    if [ "$6" != "" ]; then
+        csrHosts="--csr.hosts $6"
+    fi
 
     export FABRIC_CA_CLIENT_HOME=${BASE_DIR}/hyperledger/$orgName/$roleAndNumber/tls-msp
     export FABRIC_CA_CLIENT_TLS_CERTFILES=${BASE_DIR}/hyperledger/tls-ca/crypto/ca-cert.pem
-    fabric-ca-client enroll -u https://$roleAndNumber-$orgName:$roleAndNumber-$orgName@0.0.0.0:7052 --enrollment.profile tls --csr.hosts $roleAndNumber-$orgName
+    fabric-ca-client enroll -u https://$roleAndNumber-$orgName:$roleAndNumber-$orgName@0.0.0.0:7052 --enrollment.profile tls $csrHosts
     cd ${BASE_DIR}/hyperledger/$orgName/$roleAndNumber/tls-msp/keystore
     ln -s *_sk key.pem
     cd ${BASE_DIR}/
@@ -228,7 +244,7 @@ enrollByRole () {
     export FABRIC_CA_CLIENT_HOME=${BASE_DIR}/hyperledger/$orgName/$roleAndNumber/msp
     export FABRIC_CA_CLIENT_TLS_CERTFILES=${BASE_DIR}/hyperledger/$orgName/ca/crypto/ca-cert.pem
     certNames="C=BR,ST=SC,L=Florianopolis,O=$orgNameUpper"
-    fabric-ca-client enroll --csr.names $certNames -u https://$roleAndNumber-$orgName:$roleAndNumber-$orgName@0.0.0.0:${orgsRootCAPorts[$orgName]} --enrollment.type $enrollType
+    fabric-ca-client enroll --csr.names $certNames -u https://$roleAndNumber-$orgName:$roleAndNumber-$orgName@0.0.0.0:${orgsRootCAPorts[$orgName]} --enrollment.type $enrollType $csrHosts
     cd ${BASE_DIR}/hyperledger/$orgName/$roleAndNumber/msp/keystore
     ln -s *_sk key.pem
     cd ${BASE_DIR}/
@@ -251,59 +267,59 @@ enrollByRole () {
 if [ $registerAndEnroll != "false" ]; then
     echo -e $blueback \##Downloading ALL certificates $resetvid
     for  ((l=0; l<$numberOfOrgs; l+=1)); do
-        orgName=${matrix[$l,0]}
-        orgNameUpper=${matrix[$l,0]^^}
-        echo -e $blueback \##Download de certificados admins $orgName $resetvid
+        orgName=${matrix[$l,name]}
+        orgNameUpper=${matrix[$l,name]^^}
+        echo -e $blueback \##Downloading admins $orgName certificates $resetvid
         #Enrollment type
-        enrollType=${matrix[$l,8]}
+        enrollType=${matrix[$l,msptype]}
 
 
-        nAdms=${matrix[$l,1]}
+        nAdms=${matrix[$l,admin-quantity]}
         for ((i=1; i<=$nAdms; i+=1)); do
             enrollByRole $orgName $orgNameUpper "admin" "admin$i" $enrollType
         done
 
-        echo -e $blueback \##Criando pasta "admincerts" para admins da organizacao $orgName $resetvid
-        nAdms=${matrix[$l,1]}
+        echo -e $blueback \##Creating folder "admincerts" to admins of $orgName organization $resetvid
+        nAdms=${matrix[$l,admin-quantity]}
         for ((i=1; i<=$nAdms; i+=1)); do
             mkdir -p ${BASE_DIR}/hyperledger/$orgName/admin$i/msp/admincerts
             #save admins certificates in every admin
             find hyperledger/ -type d -regex ".*/$orgName/admin[0-9]+/msp/signcerts" | while read path; do nomeAdm=${path%/msp*}; nomeAdm=${nomeAdm#*${orgName}/} ; cp ${BASE_DIR}/$path/cert.pem ${BASE_DIR}/hyperledger/$orgName/admin$i/msp/admincerts/$nomeAdm-$orgName-cert.pem; done
         done
 
-        echo -e $blueback \##Download de certificados clients $orgName $resetvid
-        nClients=${matrix[$l,2]}
+        echo -e $blueback \##Downloading clients $orgName certificates $resetvid
+        nClients=${matrix[$l,client-quantity]}
         for ((i=1; i<=$nClients; i+=1)); do
             enrollByRole $orgName $orgNameUpper "client" "client$i" $enrollType
         done
 
 
-        echo -e $blueback \##Download de certificados orderers $orgName $resetvid
-        nOrds=${matrix[$l,3]}
+        echo -e $blueback \##Downloading orderers $orgName certificates $resetvid
+        nOrds=${matrix[$l,orderer-quantity]}
         for ((i=1; i<=$nOrds; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "orderer" "orderer$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "orderer" "orderer$i" $enrollType ${orgsOrdHosts[orderer$i-$orgName]}
         done
 
-        echo -e $blueback \##Download de certificados peers $orgName $resetvid
-        nPeers=${matrix[$l,4]}
+        echo -e $blueback \##Downloading peers $orgName certificates $resetvid
+        nPeers=${matrix[$l,peer-quantity]}
         for ((i=1; i<=$nPeers; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "peer" "peer$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "peer" "peer$i" $enrollType ${orgsPeerHosts[peer$i-$orgName]}
         done
 
-        echo -e $blueback \##Download de certificados buyers $orgName $resetvid
-        nBuyers=${matrix[$l,5]}
+        echo -e $blueback \##Downloading buyers $orgName certificates $resetvid
+        nBuyers=${matrix[$l,buyer-quantity]}
         for ((i=1; i<=$nBuyers; i+=1)); do
             enrollByRole $orgName $orgNameUpper "buyer" "buyer$i" $enrollType
         done
 
-        echo -e $blueback \##Download de certificados sellers $orgName $resetvid
-        nSellers=${matrix[$l,6]}
+        echo -e $blueback \##Downloading sellers $orgName certificates $resetvid
+        nSellers=${matrix[$l,seller-quantity]}
         for ((i=1; i<=$nSellers; i+=1)); do
             enrollByRole $orgName $orgNameUpper "seller" "seller$i" $enrollType
         done
 
-        echo -e $blueback \##Download de certificados sensors $orgName $resetvid
-        nSensors=${matrix[$l,7]}
+        echo -e $blueback \##Downloading sensors $orgName certificates $resetvid
+        nSensors=${matrix[$l,sensor-quantity]}
         for ((i=1; i<=$nSensors; i+=1)); do
             enrollByRole $orgName $orgNameUpper "sensor" "sensor$i" $enrollType
         done
@@ -318,11 +334,11 @@ fi
 #
 echo -e $blueback \## "creating MSP folders for every organization" $resetvid
 for  ((l=0; l<$numberOfOrgs; l+=1)); do
-    orgName=${matrix[$l,0]}
-    enrollType=${matrix[$l,8]}
+    orgName=${matrix[$l,name]}
+    enrollType=${matrix[$l,msptype]}
 
     #getting all admin certificates
-    nAdms=${matrix[$l,1]}
+    nAdms=${matrix[$l,admin-quantity]}
     mkdir -p ${BASE_DIR}/hyperledger/$orgName/msp/admincerts/
     for ((i=1; i<=nAdms; i+=1)); do
         cp ${BASE_DIR}/hyperledger/$orgName/admin$i/msp/signcerts/cert.pem ${BASE_DIR}/hyperledger/$orgName/msp/admincerts/$orgName-admin$i-cert.pem
@@ -331,7 +347,7 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     cp ${BASE_DIR}/hyperledger/$orgName/ca/crypto/ca-cert.pem ${BASE_DIR}/hyperledger/$orgName/msp/cacerts/$orgName-rca-cert.pem
     mkdir -p ${BASE_DIR}/hyperledger/$orgName/msp/tlscacerts
     cp ${BASE_DIR}/hyperledger/tls-ca/crypto/ca-cert.pem ${BASE_DIR}/hyperledger/$orgName/msp/tlscacerts/tls-ca-cert.pem
-    #copying the OU configuration file in "generated-config/config.yaml"
+    #copying the OU configuration file in "config-template/config.yaml"
     cp ${BASE_DIR}/config-template/config.yaml ${BASE_DIR}/hyperledger/$orgName/msp/config.yaml
 
     #IF org uses IDEMIX, then copy "IssuerPublicKey" and "IssuerRevocationPublicKey"
@@ -344,77 +360,105 @@ done
 
 
 #
+# Calling python script that reads CONFIG-ME-FIRST
+# AND GENERATES A configtx.yaml WITH THE ORGANIZATIONS
+# AND RAFT CONSENTERS INCLUDED. 
+# IT ALSO READS THE 
+# Located in "config-template/configtxTemplate.yaml"
+#
+echo -e $blueback \# "Creating 'generated-config/configtx.yaml' from template 'config-template/configtxTemplate.yaml'" $resetvid
+for key in ${!orgsOrdHosts[@]}; do
+    ordHostsArgs="$ordHostsArgs\"$key\":\"${orgsOrdHosts[$key]}\","
+done
+for key in ${!orgsPeerHosts[@]}; do
+    peerHostsArgs="$peerHostsArgs\"$key\":\"${orgsPeerHosts[$key]}\","
+done
+python $SCRIPT_DIR/partialConfigTxGeneratorAws.py "$BASE_DIR" \{${ordHostsArgs%?}\} \{${peerHostsArgs%?}\}
+
+
+#
 # CREATING THE GENESIS BLOCK AND COPYING IT TO EVERY ORDERER
 #
 #
-###read -p "Change the generated-config/configtx.yaml as wished and press ENTER to create the syschannel genesis block"
+read -p "Change the generated-config-aws/configtx.yaml as wished and press ENTER to create the syschannel genesis block"
 ###read -p $"Type the desired Profile name. Ex:  SampleMultiMSPRaft, SampleSingleMSPSolo, SampleSingleMSPKafka, etc: " profile
-profile="SampleMultiMSPRaft"
+sysChannelProfile="SampleMultiMSPRaft"
 
 echo -e $blueback \# Gerando bloco genesis para syschannel -- NAO PRECISA NA VERSAO 2.3 $resetvid
-configtxgen -configPath $BASE_DIR/generated-config -profile $profile -outputBlock ${BASE_DIR}/hyperledger/tempgenesis.block -channelID syschannel
+configtxgen -configPath $BASE_DIR/generated-config-aws -profile $sysChannelProfile -outputBlock ${BASE_DIR}/hyperledger/tempgenesis.block -channelID syschannel
 find hyperledger/ -type d -regex ".*/orderer[0-9]+" | while read path; do cp ${BASE_DIR}/hyperledger/tempgenesis.block ${BASE_DIR}/$path/genesis.block; done  
 rm ${BASE_DIR}/hyperledger/tempgenesis.block
+defaultOrderer=$(python $BASE_DIR/scripts/getDefaultOrderer.py $sysChannelProfile)
+
+
+#echo -e $blueback \# "Compressing credentials and sending to S3 bucket to be downloaded by peers and orderers" $resetvid
+tar -czf hyperledger.tar.gz hyperledger
+#bucketName=$(aws s3api list-buckets --output text --query 'Buckets[0].Name')
+#if [ $bucketName == "" ]; then
+#    aws s3api create-bucket --acl private --bucket energynetworkbucket --create-bucket-configuration LocationConstraint=sa-east-1
+#    bucketName="energynetworkbucket"
+#done
+#aws s3 cp hyperledger.tar.gz s3://$bucketName/hyperledger.tar.gz --grants read=uri=http://acs.amazonaws.com/groups/global/AllUsers
+#rm hyperledger.tar.gz
+#aws s3 cp docker-compose-aws.yml s3://$bucketName/docker-compose-aws.yml --grants read=uri=http://acs.amazonaws.com/groups/global/AllUsers
+
 
 #
 # CREATING ORDERERES AND TURNING THEM ON IN DOCKER
 #
-#
 for  ((l=0; l<$numberOfOrgs; l+=1)); do
-    export ORG_NAME=${matrix[$l,0]}
-    export ORG_NAME_UPPER=${ORG_NAME^^}
-    nOrds=${matrix[$l,3]}
+    export ORG_NAME=${matrix[$l,name]}
+    #export ORG_NAME_UPPER=${ORG_NAME^^}
+    nOrds=${matrix[$l,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
-        export ORDERER_NUMBER=$i
-        export BINDABLE_PORT
-        echo -e $blueback \# "Changing the name of "orderer" service in file docker-compose.yml" $resetvid
-        perl -pi -e 's/ orderer:/ orderer'$ORDERER_NUMBER'-'$ORG_NAME':/g' docker-compose.yml
-        sleep 2s
-        echo -e $blueback \# Turning on orderer$ORDERER_NUMBER-$ORG_NAME $resetvid
-        docker-compose -f docker-compose.yml up -d orderer$ORDERER_NUMBER-$ORG_NAME
-        perl -pi -e 's/ orderer'$ORDERER_NUMBER'-'$ORG_NAME':/ orderer:/g' docker-compose.yml
-        sleep 1s
-        docker logs orderer$ORDERER_NUMBER-$ORG_NAME
-        orgsOrdPorts[$orgName,$i]=$BINDABLE_PORT
-        BINDABLE_PORT=$(($BINDABLE_PORT+1))
+        scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem $BASE_DIR/{hyperledger.tar.gz,docker-compose-aws.yml} ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
+
+        ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]} << EOF
+            export ORG_NAME=${matrix[$l,name]}
+            export ORG_NAME_UPPER=\${ORG_NAME^^}
+            export ORDERER_NUMBER=$i
+            export ORDERER_HOST=${orgsOrdHosts[orderer$i-$ORG_NAME]}
+            export BINDABLE_PORT=0
+            cd EnergyNetwork
+            tar -xzf hyperledger.tar.gz
+            rm hyperledger.tar.gz
+            echo -e "$blueback" \# "Changing the name of "orderer" service in file docker-compose-aws.yml" "$resetvid"
+            perl -pi -e 's/ orderer:/ orderer'\$ORDERER_NUMBER'-'\$ORG_NAME':/g' docker-compose-aws.yml
+            sleep 2s
+            cat docker-compose-aws.yml
+            echo -e "$blueback" \# Turning on orderer\$ORDERER_NUMBER-\$ORG_NAME "$resetvid"   
+            docker-compose -f docker-compose-aws.yml up -d orderer\$ORDERER_NUMBER-\$ORG_NAME
+            sleep 1s
+            docker logs orderer\$ORDERER_NUMBER-\$ORG_NAME  
+EOF
     done
+    exit 1
 done
 
 #
 # CREATING PEERS AND THEIR COUCHDBS AND TURNING THEM ON IN DOCKER
 #
-#
 for  ((l=0; l<$numberOfOrgs; l+=1)); do
-    export ORG_NAME=${matrix[$l,0]}
-    export ORG_NAME_UPPER=${ORG_NAME^^}
-    nPeers=${matrix[$l,4]}
+    export ORG_NAME=${matrix[$l,name]}
+    nPeers=${matrix[$l,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
-        export PEER_NUMBER=$i
-        export BINDABLE_PORT
-        mkdir -p ${BASE_DIR}/hyperledger/${ORG_NAME}/peer${PEER_NUMBER}/data/couchdb
-        mkdir -p ${BASE_DIR}/hyperledger/${ORG_NAME}/peer${PEER_NUMBER}/data/couchdb_config
-        echo -e $blueback \# "Changing the name of service "couchdb" in the file docker-compose.yml" $resetvid
-        perl -pi -e 's/ couch-db:/ couch-db-peer'$PEER_NUMBER'-'$ORG_NAME':/g' docker-compose.yml
-        sleep 1s
-        echo -e $blueback \# Turning on couchdb-peer$PEER_NUMBER-$ORG_NAME $resetvid
-        docker-compose -f docker-compose.yml up -d couch-db-peer$PEER_NUMBER-$ORG_NAME
-        perl -pi -e 's/ couch-db-peer'$PEER_NUMBER'-'$ORG_NAME':/ couch-db:/g' docker-compose.yml
-        sleep 1s
-        docker logs couchdb-peer$PEER_NUMBER-$ORG_NAME
-        BINDABLE_PORT=$(($BINDABLE_PORT+1))
-
-        export COUCHDB_ADDRESS="couchdb-peer$PEER_NUMBER-$ORG_NAME"
-        export BINDABLE_PORT
-        echo -e $blueback \# "Changing the name of service "peer" in the file docker-compose.yml" $resetvid
-        perl -pi -e 's/ peer:/ peer'$PEER_NUMBER'-'$ORG_NAME':/g' docker-compose.yml
-        sleep 1s
-        echo -e $blueback \# Turning on peer$PEER_NUMBER-$ORG_NAME $resetvid
-        docker-compose -f docker-compose.yml up -d peer$PEER_NUMBER-$ORG_NAME
-        perl -pi -e 's/ peer'$PEER_NUMBER'-'$ORG_NAME':/ peer:/g' docker-compose.yml
-        sleep 1s
-        docker logs peer$PEER_NUMBER-$ORG_NAME
-        orgsPeerPorts[$orgName,$i]=$BINDABLE_PORT
-        BINDABLE_PORT=$(($BINDABLE_PORT+1))
+        scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem $BASE_DIR/{hyperledger.tar.gz,docker-compose-aws.yml} ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
+        ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]} << EOF
+            export ORG_NAME=${matrix[$l,name]}
+            export ORG_NAME_UPPER=\${ORG_NAME^^}
+            export PEER_NUMBER=$i
+            export PEER_HOST=${orgsPeerHosts[peer$i-$ORG_NAME]}
+            export PEER_BOOTSTRAP_HOST=${orgsPeerHosts[peer1-$ORG_NAME]}
+            export BINDABLE_PORT=0
+            echo -e "$blueback" \# "Changing the name of service "peer" in the file docker-compose-aws.yml" "$resetvid"
+            perl -pi -e 's/ peer:/ peer'\$PEER_NUMBER'-'\$ORG_NAME':/g' docker-compose-aws.yml
+            sleep 1s
+            echo -e "$blueback" \# Turning on peer\$PEER_NUMBER-\$ORG_NAME "$resetvid"
+            docker-compose -f docker-compose-aws.yml up -d peer\$PEER_NUMBER-\$ORG_NAME
+            perl -pi -e 's/ peer'\$PEER_NUMBER'-'\$ORG_NAME':/ peer:/g' docker-compose-aws.yml
+            sleep 1s
+            docker logs peer\$PEER_NUMBER-\$ORG_NAME
+EOF
     done
 done
 
@@ -423,30 +467,49 @@ done
 # VOLUME LINKED WITH admin1
 #
 for  ((l=0; l<$numberOfOrgs; l+=1)); do
-    export ORG_NAME=${matrix[$l,0]}
-    nAdms=${matrix[$l,1]}
-    #for ((i=1; i<=$nAdms; i+=1)); do
-        echo -e $blueback \# Mudando nome do servico "cli" no arquivo docker-compose.yml $resetvid
-        perl -pi -e 's/ cli:/ cli-'$ORG_NAME':/g' docker-compose.yml
-        sleep 1s
-        echo -e $blueback \# subindo o cli-$ORG_NAME $resetvid
-        docker-compose -f docker-compose.yml up -d cli-$ORG_NAME
-        perl -pi -e 's/ cli-'$ORG_NAME':/ cli:/g' docker-compose.yml
-        sleep 1s
-        docker logs cli-$ORG_NAME
-    #done
+    export ORG_NAME=${matrix[$l,name]}
+    nAdms=${matrix[$l,admin-quantity]}
+    echo -e $blueback \# "Changing 'cli' service name in file 'docker-compose-aws.yml'" $resetvid
+    perl -pi -e 's/ cli:/ cli-'$ORG_NAME':/g' docker-compose-aws.yml
+    sleep 1s
+    echo -e $blueback \# Turning cli-$ORG_NAME on $resetvid
+    docker-compose -f docker-compose-aws.yml up -d cli-$ORG_NAME
+    perl -pi -e 's/ cli-'$ORG_NAME':/ cli:/g' docker-compose-aws.yml
+    sleep 1s
+    docker logs cli-$ORG_NAME
 done
 
+#echo -e $blueback \# "Clearing the aws s3 bucket because files were public " $resetvid
+#aws s3 rm s3://$bucketName/hyperledger.tar.gz
+rm hyperledger.tar.gz
+#aws s3 rm s3://$bucketName/docker-compose-aws.yml
 
 #
-# CREATING CONFIGURED CHANNELS,
-# MAKING PEERS OF INCLUDED ORGS JOIN,
+# CREATING THE 'connection-tls.json' files for the applications SDKs
+#
+echo -e $blueback \# "Creating organizations AWS 'connections-tls.json' in folder 'generated-connection-tls'"$resetvid
+for key in ${!orgsOrdHosts[@]}; do
+    ordHostsArgs="$ordHostsArgs\"$key\":\"${orgsOrdHosts[$key]}\","
+done
+for key in ${!orgsPeerHosts[@]}; do
+    peerHostsArgs="$peerHostsArgs\"$key\":\"${orgsPeerHosts[$key]}\","
+done
+
+mkdir -p $BASE_DIR/generated-connection-tls
+python $SCRIPT_DIR/awsAppConnectionsCreator.py --basedir $BASE_DIR --awsbasedir '/home/ubuntu/EnergyNetwork' --ordererhosts \{${ordHostsArgs%?}\} --peerhosts \{${peerHostsArgs%?}\}
+
+echo -e $blueback \# "Copying organizations 'connections-tls.json' to 'energy-applications/cfgs'"$resetvid
+cp $BASE_DIR/generated-connection-tls/*.*  $BASE_DIR/energy-applications/cfgs/
+
+#
+# CREATING CONFIGURED CHANNELS
+# MAKING PEERS OF INCLUDED ORGS JOIN
 # INSTALLING AND COMMMITING CHAINCODES
 #
 while true; do
     read -p "Do you wish create any channel? [yN]" yn
     case $yn in
-        [Yy]* ) read -p   "$(echo -e $blueback "MAKE SURE YOU HAVE CONFIGURED THE CHANNEL IN generated-config/configtx.yaml (PRESS ENTER TO CONTINUE)" $resetvid)";;
+        [Yy]* ) read -p   "$(echo -e $blueback "MAKE SURE YOU HAVE CONFIGURED THE CHANNEL IN generated-config-aws/configtx.yaml (PRESS ENTER TO CONTINUE)" $resetvid)";;
         [Nn]* ) break;;
         * ) echo "Please answer yes or no."; break;;
     esac
@@ -461,7 +524,7 @@ while true; do
 
     firstOrgInChannelUpper=${ORGS_IN_CHANNEL[0]}
     firstOrgInChannelLower=${firstOrgInChannelUpper,,}
-    configtxgen -configPath $BASE_DIR/generated-config -profile $profile -outputCreateChannelTx ${BASE_DIR}/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -channelID $channelID --asOrg $orgName
+    configtxgen -configPath $BASE_DIR/generated-config-aws -profile $profile -outputCreateChannelTx ${BASE_DIR}/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -channelID $channelID --asOrg $orgName
     export MSYS_NO_PATHCONV=1
 
     #
@@ -469,12 +532,12 @@ while true; do
     # MESSAGE SENT TO A ORDERER
     #
     echo -e $blueback \# Creating channel$resetvid
-    docker exec -e CORE_PEER_LOCALMSPID=$firstOrgInChannelUpper -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$firstOrgInChannelLower/admin1/msp cli-$firstOrgInChannelLower peer channel create -c $channelID -f /tmp/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -o orderer1-$firstOrgInChannelLower:7050 --outputBlock /tmp/hyperledger/$firstOrgInChannelLower/admin1/$channelID.block --tls --cafile /tmp/hyperledger/$firstOrgInChannelLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
+    docker exec -e CORE_PEER_LOCALMSPID=$firstOrgInChannelUpper -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$firstOrgInChannelLower/admin1/msp cli-$firstOrgInChannelLower peer channel create -c $channelID -f /tmp/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -o $defaultOrderer:7050 --outputBlock /tmp/hyperledger/$firstOrgInChannelLower/admin1/$channelID.block --tls --cafile /tmp/hyperledger/$firstOrgInChannelLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
 
     unset MSYS_NO_PATHCONV
     rm ${BASE_DIR}/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx
 
-    #Copying the channel genesis block for other org's admin
+    echo -e $blueback \# Copying the channel genesis block for other orgs admin $resetvid
     for orgName in ${ORGS_IN_CHANNEL[@]} ; do
         orgName=${orgName,,}
         if [ $orgName != $firstOrgInChannelLower ]; then
@@ -493,16 +556,38 @@ while true; do
         orgNameLower=${orgNameUpper,,}
         orgIndex=$(findOrgIndexByName $orgNameLower)
 
-        enrollType=${matrix[$orgIndex,8]}
+        enrollType=${matrix[$orgIndex,msptype]}
         if [ $enrollType != "idemix" ]; then
             enrollType="bccsp"
         fi
 
-        nPeers=${matrix[$orgIndex,4]}
+        nPeers=${matrix[$orgIndex,peer-quantity]}
         for ((i=1; i<=nPeers; i+=1)); do
             docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer$i-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower peer channel join -b /tmp/hyperledger/$orgNameLower/admin1/$channelID.block   
         done
-    done
+
+        #
+        # Setting ANCHOR PEERS for organizations in the channel
+        #
+        if (( nPeers > 0 )); then
+            echo -e $blueback \# "Setting peer1-$orgNameLower as ANCHOR PEER in org $orgNameLower for channel $channelID" $resetvid
+            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower bash -c "mkdir -p art && peer channel fetch config art/config_block.pb -o $defaultOrderer:7050 -c $channelID --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem"
+
+            docker exec cli-$orgNameLower configtxlator proto_decode --input art/config_block.pb --type common.Block --output art/config_block.json 
+            docker exec cli-$orgNameLower bash -c "jq .data.data[0].payload.data.config art/config_block.json > art/config.json"
+            docker exec cli-$orgNameLower cp art/config.json art/config_copy.json
+            #fazer pra todos os peers????
+            docker exec cli-$orgNameLower bash -c "jq '.channel_group.groups.Application.groups.'$orgNameUpper'.values += {\"AnchorPeers\":{\"mod_policy\": \"Admins\",\"value\":{\"anchor_peers\": [{\"host\": \"'peer1-$orgNameLower'\",\"port\": 7051}]},\"version\": \"0\"}}' art/config_copy.json > art/modified_config.json"
+            docker exec cli-$orgNameLower configtxlator proto_encode --input art/config.json --type common.Config --output art/config.pb 
+            docker exec cli-$orgNameLower configtxlator proto_encode --input art/modified_config.json --type common.Config --output art/modified_config.pb 
+            docker exec cli-$orgNameLower configtxlator compute_update --channel_id canal --original art/config.pb --updated art/modified_config.pb --output art/config_update.pb 
+            docker exec cli-$orgNameLower configtxlator proto_decode --input art/config_update.pb --type common.ConfigUpdate --output art/config_update.json
+            docker exec cli-$orgNameLower bash -c "echo '{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"'$channelID'\",\"type\":2}},\"data\":{\"config_update\":'\$(cat art/config_update.json)'}}}' | jq . > art/config_update_in_envelope.json"
+            docker exec cli-$orgNameLower configtxlator proto_encode --input art/config_update_in_envelope.json --type common.Envelope --output art/config_update_in_envelope.pb
+
+            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower peer channel update -f art/config_update_in_envelope.pb -c canal -o $defaultOrderer:7050 --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
+        fi 
+    done 
 
     #
     # PACKING, INSTALLING AND APPROVING ALL CHAINCODE 
@@ -523,7 +608,7 @@ while true; do
         adminMSP="/tmp/hyperledger/$orgNameLower/admin1/msp"
         adminCaTLSCert="/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem"
 
-        enrollType=${matrix[$orgIndex,8]}
+        enrollType=${matrix[$orgIndex,msptype]}
         if [ $enrollType != "idemix" ]; then
             enrollType="bccsp"
         fi
@@ -541,7 +626,7 @@ while true; do
         # IN EVERY PEER
         #
         echo -e $blueback "Installing the CHAINCODES in EVERY peer of org $orgNameUpper" $resetvid
-        nPeers=${matrix[$orgIndex,4]}
+        nPeers=${matrix[$orgIndex,peer-quantity]}
         for ((i=1; i<=nPeers; i+=1)); do
             for chaincodeName in ${chaincodeNames[@]}; do
                 echo -e $blueback "Installing chaincode '$chaincodeName' in peer$i-$orgNameLower" $resetvid
@@ -569,9 +654,9 @@ while true; do
             chaincodeIndex=0
             for chaincodeName in ${chaincodeNames[@]}; do
                 echo -e $blueback "Approving chaincode '$chaincodeName' for org $orgNameUpper" $resetvid
-                docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=$adminMSP -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=$adminCaTLSCert cli-$orgNameLower peer lifecycle chaincode approveformyorg -o orderer1-$orgNameLower:7050 --tls --cafile $adminCaTLSCert --channelID $channelID --name $chaincodeName --version 1 --init-required --package-id ${chaincodeIDs[$chaincodeIndex]} --sequence 1
+                docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=$adminMSP -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=$adminCaTLSCert cli-$orgNameLower peer lifecycle chaincode approveformyorg -o $defaultOrderer:7050 --tls --cafile $adminCaTLSCert --channelID $channelID --name $chaincodeName --version 1 --init-required --package-id ${chaincodeIDs[$chaincodeIndex]} --sequence 1
                 
-                chaincodeIndex=$((chaincodeIndex+1))    
+                chaincodeIndex=$((chaincodeIndex+1))  
             done
 
         fi
@@ -594,14 +679,14 @@ while true; do
         for orgName in ${ORGS_IN_CHANNEL[@]}; do
             orgNameLower=${orgName,,}
             orgIndex=$(findOrgIndexByName $orgNameLower)
-            nPeers=${matrix[$orgIndex,4]}
+            nPeers=${matrix[$orgIndex,peer-quantity]}
             if (( $nPeers > 0 )); then 
                 tlsRootFlags+="--tlsRootCertFiles $adminCaTLSCert " 
                 peerAddressesFlags+="--peerAddresses peer1-${orgNameLower}:7051 "
             fi
         done
 
-        docker exec -e CORE_PEER_LOCALMSPID=$committerOrgUpper -e CORE_PEER_ADDRESS=peer1-$committerOrgLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$committerOrgLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$committerOrgLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$committerOrgLower peer lifecycle chaincode commit -o orderer1-$committerOrgLower:7050 --channelID $channelID --name $chaincodeName --version 1 --sequence 1 --init-required --tls --cafile $adminCaTLSCert $tlsRootFlags $peerAddressesFlags
+        docker exec -e CORE_PEER_LOCALMSPID=$committerOrgUpper -e CORE_PEER_ADDRESS=peer1-$committerOrgLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$committerOrgLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$committerOrgLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$committerOrgLower peer lifecycle chaincode commit -o $defaultOrderer:7050 --channelID $channelID --name $chaincodeName --version 1 --sequence 1 --init-required --tls --cafile $adminCaTLSCert $tlsRootFlags $peerAddressesFlags
     done
     
     #
@@ -610,7 +695,11 @@ while true; do
     #
 done
 
+mkdir -p $BASE_DIR/test-reports
 
+
+#echo -e $blueback " Starting container 'cli-application' to execute our applications inside the docker private network " $resetvid
+#docker-compose -f docker-compose-aws.yml up -d cli-applications-ubuntu
 
 #-------------------------------------------- EXIT --------------------------------------
 
@@ -658,6 +747,8 @@ export MSYS_NO_PATHCONV=1
 # EXAMPLES calling "init" on ENERGY chaincode
 #
 docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"Init","Args":[]}' --isInit
+
+exit 1
 
 #read -p "PRESS ENTER TO CONTINUE"
 
@@ -830,21 +921,21 @@ docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e
 #
 # EXEMPLE  calling function "registerMultipleSellBids" on ENERGY chaincode
 #
-#docker exec -e  GRPC_GO_LOG_SEVERITY_LEVEL=debug -e  GRPC_GO_LOG_VERBOSITY_LEVEL=2 -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/seller1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/seller1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/seller1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/seller1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/ufsc/seller1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"registerMultipleSellBids","Args":["50000", "10", "20", "5", "15", "solar"]}' &> sellBidResponse.txt
+#docker exec -e  GRPC_GO_LOG_SEVERITY_LEVEL=debug -e  GRPC_GO_LOG_VERBOSITY_LEVEL=2 -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/seller1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/seller1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/seller1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/seller1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/ufsc/seller1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"registerMultipleSellBids","Args":["100", "10", "20", "5", "15", "solar"]}'
 
 #read -p "PRESS ENTER TO CONTINUE"
 
 #
 # EXEMPLE  calling function "registerMultipleBuyBids" on ENERGY chaincode
 #
-#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e  CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/buyer1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"registerMultipleBuyBids","Args":["50000", "UFSC", "10", "20", "5", "15", "solar"]}' &> buybidBidResponse.txt
+#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e  CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/buyer1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"registerMultipleBuyBids","Args":["100", "UFSC", "10", "20", "5", "15", "solar"]}'
 
 #sleep 5s
 
 #
 # EXEMPLE  calling function "validateMultipleBuyBids" on ENERGY chaincode
 #
-#docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"validateMultipleBuyBids","Args":["50000"]}' &> validateBidResponse.txt
+#docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"validateMultipleBuyBids","Args":["100"]}'
 
 
 #read -p "PRESS ENTER TO CONTINUE"
@@ -889,7 +980,7 @@ docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e
 #
 # EXEMPLES  calling function "measureTimeDifferentAuctions" on ENERGY chaincode
 #
-docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"measureTimeDifferentAuctions","Args":["1"]}'
+#docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"measureTimeDifferentAuctions","Args":["1"]}'
 
 #
 # EXEMPLES  calling function "testWorldStateLogic" on ENERGY chaincode
@@ -921,5 +1012,14 @@ docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e
 # EXEMPLE decoding the newest block fetched with the command above
 #
 #docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg configtxlator proto_decode --type=common.Block --input=canal_newest.block
+
+#configtxgen -configPath ./generated-config-aws -profile SampleMultiMSPRaft -outputBlock ./genesis.block -channelID syschannel
+#docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc configtxlator proto_decode --type=common.Block --input=./genesis.block
+
+#
+# Example discover
+#
+#docker exec cli-ufsc discover --configFile /tmp/hyperledger/ufsc/conf.yaml config --channel canal --server peer1-ufsc:7051
+#docker exec cli-ufsc discover --configFile /tmp/hyperledger/ufsc/conf.yaml endorsers --channel canal --server peer1-ufsc:7051 --chaincode energy
 
 export MSYS_NO_PATHCONV=1

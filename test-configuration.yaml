@@ -25,3 +25,5 @@ utilityurl: http://localhost
 paymentcompanyurl: http://localhost:81
 #Interval in ms
 auctioninterval: 30000
+
+#terraform

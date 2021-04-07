@@ -30,6 +30,8 @@ FALAR SOBRE
 
 > Patched [Hyperledger Fabric Gateway tag/v2.2.1](https://github.com/hyperledger/fabric-gateway-java/tree/v2.2.1)
 
+> AWS Cli - aws-cli/2.1.32 Python/3.8.8 Windows/10 exe/AMD64 prompt/off
+
 ## Installing and patching dependencies
 
 After following the tutorial on [Hyperldeger Fabric Pre-requisites](https://hyperledger-fabric.readthedocs.io/en/release-2.2/prereqs.html), the `install-dependencies.sh` script will clone, patch and install:

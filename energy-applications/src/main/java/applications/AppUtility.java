@@ -356,7 +356,7 @@ public class AppUtility {
             network = gateway.getNetwork("canal");
             // Contract contract = network.getContract("energy");
 
-            // listen on HTTPS SERVER
+            // listen on HTTP SERVER
             HttpServer server = HttpServer.create(new InetSocketAddress(Integer.parseInt(cmd.getOptionValue("port"))), 0);
             server.createContext("/noncerequest", new NonceRequestHandler());
             server.createContext("/discountrequest", new DiscountRequestHandler());

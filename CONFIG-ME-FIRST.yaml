@@ -3,8 +3,8 @@ organizations:
     - name: ufsc
       admin-quantity: 1
       client-quantity: 0
-      peer-quantity: 2
-      orderer-quantity: 1
+      peer-quantity: 0
+      orderer-quantity: 2
       buyer-quantity: 0 
       seller-quantity: 1 #200
       sensor-quantity: 1 #200
@@ -13,8 +13,8 @@ organizations:
     - name: parma
       admin-quantity: 1
       client-quantity: 0
-      peer-quantity: 1 
-      orderer-quantity: 1
+      peer-quantity: 0 
+      orderer-quantity: 0
       buyer-quantity: 0 
       seller-quantity: 2
       sensor-quantity: 2
@@ -28,4 +28,4 @@ organizations:
       buyer-quantity: 1 #200
       seller-quantity: 0
       sensor-quantity: 0
-      msptype: idemix      
+      msptype: idemix
