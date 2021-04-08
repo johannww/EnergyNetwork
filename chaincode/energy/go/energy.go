@@ -2306,6 +2306,8 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 			return chaincode.registerSellBidTestContext(stub, args[0], amountKWH, pricePerKWH, args[3])
 		} else if function == "getEnergyTransactionsFromSellBidNumbersTestContext" {
 			return chaincode.getEnergyTransactionsFromSellBidNumbersTestContext(stub, args[0], args[1:len(args)])
+		} else if function == "validateBuyBidTestContext" {
+			return chaincode.validateBuyBidTestContext(stub, args[0], args[1])
 		}
 	}
 	return shim.Error("Invalid invoke function name. Expecting \"invoke\" \"delete\" \"query\"")
@@ -3198,4 +3200,50 @@ func (chaincode *EnergyChaincode) getEnergyTransactionsFromSellBidNumbersTestCon
 	}
 
 	return shim.Success([]byte(energyTransactionsJSON))
+}
+
+func (chaincode *EnergyChaincode) validateBuyBidTestContext(stub shim.ChaincodeStubInterface, paymentCompanyMspID string, token string) pb.Response {
+	fmt.Println("---- validateBuyBidTestContext function beggining ----")
+
+	var buyBid st.BuyBid
+
+	key, err := stub.CreateCompositeKey("BuyBid", []string{"false", paymentCompanyMspID, token})
+	buyBidBytes, err := stub.GetState(key)
+	if buyBidBytes == nil {
+		return shim.Error("Error retriving BuyBid of token " + token)
+	}
+
+	err = proto.Unmarshal(buyBidBytes, &buyBid)
+	if err != nil {
+		return shim.Error("Error unmarshaling BuyBid of token " + token)
+	}
+
+	if buyBid.Token != token {
+		return shim.Error("Argument 'token' does not match BuyBid Token")
+	}
+
+	buyBid.Validated = true
+	buyBidBytes, err = proto.Marshal(&buyBid)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	//delete BuyBid with the composite key "BuyBidfalse..."
+	err = stub.DelState(key)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	//... and replace with the composite key "BuyBidtrue..."
+	key, err = stub.CreateCompositeKey("BuyBid", []string{"true", paymentCompanyMspID, token})
+
+	err = stub.PutState(key, buyBidBytes)
+	if err != nil {
+		return shim.Error(err.Error())
+	}
+
+	//send it to auction
+	fmt.Printf("Validated BuyBid: %+v\n", buyBid)
+
+	return shim.Success([]byte("BuyBid of token " + token + " validated!"))
 }

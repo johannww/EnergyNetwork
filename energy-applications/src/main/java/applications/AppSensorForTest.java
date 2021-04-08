@@ -116,11 +116,11 @@ public class AppSensorForTest {
          * "-msp", "UFSC", "-u", "sensor1-ufsc", "-unit", "3834792229",
          * "--publishinterval", "2", "--publishquantity", "50" };
          * 
-         
-        args = new String[] { "-msp", "UFSC", "--basedir",
-        "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sensors", "1",
-        "--unit", "3834792229", "--publishinterval", "2", "--publishquantity", "1" };*/
-         
+         *  
+          args = new String[] { "-msp", "UFSC", "--basedir",
+          "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sensors", "100",
+         "--unit", "3834792229", "--publishinterval", "2", "--publishquantity", "1" };*/
+        
 
         ArgParserSensorTest testParser = new ArgParserSensorTest();
 
@@ -133,134 +133,136 @@ public class AppSensorForTest {
         int interval = Integer.parseInt(cmd.getOptionValue("publishinterval"));
         int maxPublish = Integer.parseInt(cmd.getOptionValue("publishquantity"));
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
+        String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
 
-        CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
-        Thread[] threads = new Thread[THREAD_NUM + 1];
+        // parsing sensor params
+        ArgParserSensor sensorParser = new ArgParserSensor();
+        Gateway.Builder builder;
+        try {
+            // file path credentials args
+            String sensorNameIdentity = "sensor1";
+            Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "sensor1", "msp", "signcerts",
+                    "cert.pem");
+            Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "sensor1", "msp", "keystore", "key.pem");
+            args = new String[] { "--certificate", certPath.toString(), "--privatekey", pkPath.toString(),
+                    "-msp", "UFSC", "-u",  String.format(sensorNameIdentity+"-%s", cmd.getOptionValue("msp").toLowerCase()) };
+            cmd = sensorParser.parseArgs(args);
 
-        for (int i = 1; i <= THREAD_NUM; i++) {
+            // get the sensor's identity
+            Identity identity = ApplicationIdentityProvider.getX509Identity(cmd);
 
-            final int finalI = i;
-            threads[i] = new Thread() {
+            // Path to a common connection profile describing the network.
+            String mspLower = cmd.getOptionValue("msp").toLowerCase();
+            Path networkConfigFile = Paths.get("cfgs", String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
 
-                int threadNum = finalI;
-                CommandLine cmd;
-
-                public void run() {
-
-                    // parsing sensor params
-                    ArgParserSensor sensorParser = new ArgParserSensor();
-                    Gateway.Builder builder;
-                    String sensorFullName;
-                    try {
-                        // file path credentials args
-                        String sensorName = "sensor" + Integer.toString(threadNum);
-                        sensorFullName = String.format("%s-ufsc", sensorName);
-                        Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "sensor1", "msp",
-                                "signcerts", "cert.pem");
-                        Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "sensor1", "msp",
-                                "keystore", "key.pem");
-                        String[] args = new String[] { "--certificate", certPath.toString(), "--privatekey",
-                                pkPath.toString(), "-msp", "UFSC", "-u", sensorFullName };
-                        cmd = sensorParser.parseArgs(args);
-
-                        // get the sensor's identity
-                        Identity identity = ApplicationIdentityProvider.getX509Identity(cmd);
-
-                        // Path to a common connection profile describing the network.
-                        String msp = cmd.getOptionValue("msp").toLowerCase();
-                        Path networkConfigFile = Paths.get("cfgs",
-                                String.format("%snon-blocking-%s-connection-tls.json", dockerPrefix, msp));
-
-                        // Configure the gateway connection used to access the network.
-                        builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
-                                .discovery(dockerPrefix.length() > 0);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new Error(
-                                String.format("Thread %d exiting with exception: " + e.getMessage(), threadNum));
-                    }
-
-                    // Create a gateway connection
-                    try (Gateway gateway = builder.connect()) {
-
-                        // Obtain a smart contract deployed on the network.
-                        Network network = gateway.getNetwork("canal");
-                        Contract contract = network.getContract("energy");
-
-                        long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0, startTransaction = 0,
-                                singleSignatureTime = 0, startSignature;
-                        Transaction transaction = null;
-
-                        try {
-                            transaction = contract.createTransaction("sensorDeclareActiveTestContext");
-                            transaction.submit(sensorFullName);
-                        } catch (Exception e) {
-                            System.out.println(
-                                    String.format("Sensor %d probably already active: " + e.getMessage(), threadNum));
-                        }
-
-                        // hold all testing threads here until all are ready to go
-                        threadsBarrier.await();
-                        startExecution = System.currentTimeMillis();
-
-                        // Publish SmartData
-                        try {
-                            int publish = 0;
-                            // adding a little randomness to start time to avoid 100% sync among threads
-                            Thread.sleep(new Random().nextInt(500) + 2000);
-                            while (publish < maxPublish) {
-                                SmartData smartData = getRandomSmartData(unit, threadNum, publish);
-
-                                startTransaction = System.currentTimeMillis();
-                                transaction = contract.createTransaction("publishSensorDataTestContext");
-                                transaction.submit(sensorFullName, Byte.toString(smartData.version),
-                                        Long.toString(smartData.unit), Long.toString(smartData.timestamp),
-                                        Double.toString(smartData.value), Byte.toString(smartData.error),
-                                        Byte.toString(smartData.confidence), Integer.toString(smartData.dev));
-                                transactionTimeWait += System.currentTimeMillis() - startTransaction;
-
-                                // System.out.println(new String(transactionResult, StandardCharsets.UTF_8));
-                                publish++;
-                                Thread.sleep(interval);
-                            }
-                        } catch (Exception e) {
-                            System.out.println("Exception in thread " + Integer.toString(threadNum));
-                            e.printStackTrace();
-                        }
-                        totalExecutionTime = System.currentTimeMillis() - startExecution;
-
-                        // signature time testing
-                        TransactionContext txContext = transaction.getTransactionContext();
-                        try {
-                            startSignature = System.currentTimeMillis();
-                            txContext.sign("EAGYEASDIUHWAUIHDIASDdsaUSAHDIUADHUIWH".getBytes());
-                            singleSignatureTime = System.currentTimeMillis() - startSignature;
-                        } catch (CryptoException | InvalidArgumentException e) {
-                            e.printStackTrace();
-                        }
-
-                        System.out.println(getClass().getName() + " Thread " + Integer.toString(threadNum) + " took "
-                                + Long.toString(transactionTimeWait) + "ms to submit " + Integer.toString(maxPublish)
-                                + " transactions of " + Long.toString(totalExecutionTime)
-                                + "ms total execution time. \nA single signature takes: "
-                                + Long.toString(singleSignatureTime) + "ms ");
-
-                        // Evaluate transactions that query state from the ledger.
-                        // byte[] queryResponse = contract.evaluateTransaction("query", "A");
-                        // System.out.println(new String(queryResponse, StandardCharsets.UTF_8));
-
-                    } catch (Exception e) {// (ContractException e) {
-                        e.printStackTrace();
-                    }
-                }
-            };
-            threads[i].start();
+            // Configure the gateway connection used to access the network.
+            builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
+                    .discovery((dockerPrefix.length() > 0) || (awsPrefix.length() > 0));
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new Error(String.format("Exiting with exception: " + e.getMessage()));
         }
+        try (Gateway gateway = builder.connect()) {
 
-        for (int i = 1; i <= THREAD_NUM; i++)
-            threads[i].join();
+            CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
+            Thread[] threads = new Thread[THREAD_NUM + 1];
 
-        System.out.println("ENDED!");
-        System.exit(0);
+            for (int i = 1; i <= THREAD_NUM; i++) {
+
+                final int finalI = i;
+                threads[i] = new Thread() {
+
+                    int threadNum = finalI;
+                    //CommandLine cmd;
+
+                    public void run() {
+
+                        // Create a gateway connection
+                        try {
+
+                            // Obtain a smart contract deployed on the network.
+                            Network network = gateway.getNetwork("canal");
+                            Contract contract = network.getContract("energy");
+
+                            String sensorFullName = String.format("sensor%d-%s", threadNum, cmd.getOptionValue("msp").toLowerCase());
+
+                            long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0,
+                                    startTransaction = 0, singleSignatureTime = 0, startSignature;
+                            Transaction transaction = null;
+
+
+                            try {
+                                transaction = contract.createTransaction("sensorDeclareActiveTestContext");
+                                transaction.submit(sensorFullName);
+                            } catch (Exception e) {
+                                System.out.println(String.format("Sensor %d probably already active: " + e.getMessage(),
+                                        threadNum));
+                            }
+
+                            // hold all testing threads here until all are ready to go
+                            threadsBarrier.await();
+                            startExecution = System.currentTimeMillis();
+
+                            // Publish SmartData
+                            try {
+                                int publish = 0;
+                                // adding a little randomness to start time to avoid 100% sync among threads
+                                Thread.sleep(new Random().nextInt(500) + 2000);
+                                while (publish < maxPublish) {
+                                    SmartData smartData = getRandomSmartData(unit, threadNum, publish);
+
+                                    startTransaction = System.currentTimeMillis();
+                                    transaction = contract.createTransaction("publishSensorDataTestContext");
+                                    transaction.submit(sensorFullName, Byte.toString(smartData.version),
+                                            Long.toString(smartData.unit), Long.toString(smartData.timestamp),
+                                            Double.toString(smartData.value), Byte.toString(smartData.error),
+                                            Byte.toString(smartData.confidence), Integer.toString(smartData.dev));
+                                    transactionTimeWait += System.currentTimeMillis() - startTransaction;
+
+                                    // System.out.println(new String(transactionResult, StandardCharsets.UTF_8));
+                                    publish++;
+                                    Thread.sleep(interval);
+                                }
+                            } catch (Exception e) {
+                                System.out.println("Exception in thread " + Integer.toString(threadNum));
+                                e.printStackTrace();
+                            }
+                            totalExecutionTime = System.currentTimeMillis() - startExecution;
+
+                            // signature time testing
+                            TransactionContext txContext = transaction.getTransactionContext();
+                            try {
+                                startSignature = System.currentTimeMillis();
+                                txContext.sign("EAGYEASDIUHWAUIHDIASDdsaUSAHDIUADHUIWH".getBytes());
+                                singleSignatureTime = System.currentTimeMillis() - startSignature;
+                            } catch (CryptoException | InvalidArgumentException e) {
+                                e.printStackTrace();
+                            }
+
+                            System.out.println(getClass().getName() + " Thread " + Integer.toString(threadNum)
+                                    + " took " + Long.toString(transactionTimeWait) + "ms to submit "
+                                    + Integer.toString(maxPublish) + " transactions of "
+                                    + Long.toString(totalExecutionTime)
+                                    + "ms total execution time. \nA single signature takes: "
+                                    + Long.toString(singleSignatureTime) + "ms ");
+
+                            // Evaluate transactions that query state from the ledger.
+                            // byte[] queryResponse = contract.evaluateTransaction("query", "A");
+                            // System.out.println(new String(queryResponse, StandardCharsets.UTF_8));
+
+                        } catch (Exception e) {// (ContractException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                };
+                threads[i].start();
+            }
+
+            for (int i = 1; i <= THREAD_NUM; i++)
+                threads[i].join();
+
+            System.out.println("ENDED!");
+            System.exit(0);
+        }
     }
 }

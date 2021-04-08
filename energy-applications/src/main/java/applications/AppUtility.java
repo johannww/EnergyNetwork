@@ -13,6 +13,9 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -60,7 +63,6 @@ import org.hyperledger.fabric.sdk.idemix.IdemixPseudonymSignature;
 import applications.argparser.ArgParserUtility;
 import applications.identity.ApplicationIdentityProvider;
 
-
 public class AppUtility {
 
     private static CommandLine cmd;
@@ -68,7 +70,6 @@ public class AppUtility {
     private static Map<String, Double> tokenEnergyDiscounted;
     private static Map<String, Integer> clientLastNonces;
     private static String UTILITY_NAME = "UFSC";
-    static SecureRandom secureRandom;
 
     private static class DiscountRequestHandler implements HttpHandler {
         @Override
@@ -90,7 +91,8 @@ public class AppUtility {
             double kwhDiscounted;
 
             try {
-                kwhDiscounted = energyDiscountRequest(network, clientName, registerBuyBidTxID, ipk, buyerProofSignature);
+                kwhDiscounted = energyDiscountRequest(network, clientName, registerBuyBidTxID, ipk,
+                        buyerProofSignature);
             } catch (Exception e) {
                 kwhDiscounted = 0;
             }
@@ -116,15 +118,13 @@ public class AppUtility {
 
             String response;
 
-
             try {
-                Integer nonce = secureRandom.nextInt();
+                Integer nonce = (new SecureRandom()).nextInt();
                 clientLastNonces.put(clientName, nonce);
                 response = Integer.toString(nonce);
             } catch (Exception e) {
                 response = "Failed to generate nonce for client " + clientName;
             }
-
 
             t.sendResponseHeaders(200, response.length());
             OutputStream os = t.getResponseBody();
@@ -276,8 +276,7 @@ public class AppUtility {
     }
 
     private static double energyDiscountRequest(Network network, String clientName, String registerBuyBidTxID,
-            IssuerPublicKey ipk,
-            byte[] txIDSig) throws Exception {
+            IssuerPublicKey ipk, byte[] txIDSig) throws Exception {
 
         double kwhDiscounted = 0;
 
@@ -295,8 +294,8 @@ public class AppUtility {
             List<KVWrite> kVWriteList = getTransactionKVWriteSet(transactionInfo);
             // verify if transaction is ACTUALLY a 'registerBuyBid' transaction
             // verify if client requesting discount is the creator of the transaction
-            if (transactionStoredABuyBid(kVWriteList)
-                    && verifyBuyBidSignatureMatch(transactionInfo, ipk, (registerBuyBidTxID+clientLastNonce.toString()).getBytes(), txIDSig)) {
+            if (transactionStoredABuyBid(kVWriteList) && verifyBuyBidSignatureMatch(transactionInfo, ipk,
+                    (registerBuyBidTxID + clientLastNonce.toString()).getBytes(), txIDSig)) {
                 // verify if there is a EnergyTransaction registered for bid
                 kwhDiscounted = verifyBuyBidWasMatchedInAuction(contract, kVWriteList);
             }
@@ -310,61 +309,65 @@ public class AppUtility {
     public static void main(String[] args) throws Exception {
 
         // enroll args
-        /*args = new String[] { "-e", "-u", "admin1-ufsc", "-pw", "admin1-ufsc", "-host", "https://localhost:7000",
-                "--cacert",
-                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\cacerts\\0-0-0-0-7000.pem",
-                "-w", "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp", "-msp",
-                "UFSC", "-port", "80"};
-        // wallet path args
-        args = new String[] { "-w",
-                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp", "-msp",
-                "UFSC", "-u", "admin1-ufsc", "-port", "80" };
-        // file path credentials args
-        args = new String[] { "--certificate",
-                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\signcerts\\cert.pem",
-                "--privatekey",
-                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\keystore\\key.pem",
-                "-w", "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp", "-msp",
-                "UFSC", "-u", "admin1-ufsc", "-port", "80"};*/
+        /*
+         * args = new String[] { "-e", "-u", "admin1-ufsc", "-pw", "admin1-ufsc",
+         * "-host", "https://localhost:7000", "--cacert",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\cacerts\\0-0-0-0-7000.pem",
+         * "-w",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp",
+         * "-msp", "UFSC", "-port", "80"}; // wallet path args args = new String[] {
+         * "-w",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp",
+         * "-msp", "UFSC", "-u", "admin1-ufsc", "-port", "80" }; // file path
+         * credentials args args = new String[] { "--certificate",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\signcerts\\cert.pem",
+         * "--privatekey",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\keystore\\key.pem",
+         * "-w",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp",
+         * "-msp", "UFSC", "-u", "admin1-ufsc", "-port", "80"};
+         */
 
         // parsing utility params
         ArgParserUtility utilityParser = new ArgParserUtility();
         cmd = utilityParser.parseArgs(args);
-        
-        
+
         // get the utility identity
         Identity identity = ApplicationIdentityProvider.getX509Identity(cmd);
-        
+
         // Path to a common connection profile describing the network.
-        String msp = cmd.getOptionValue("msp").toLowerCase();
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
-        Path networkConfigFile = Paths.get("cfgs", String.format("%s%s-connection-tls.json", dockerPrefix, msp));
-        
+        String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
+        String mspLower = cmd.getOptionValue("msp").toLowerCase();
+        Path networkConfigFile = Paths.get("cfgs",
+                String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
+
         // Configure the gateway connection used to access the network.
-        Gateway.Builder builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile).discovery(dockerPrefix.length()>0);
-        
+        Gateway.Builder builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
+                .discovery((dockerPrefix.length() > 0) || (awsPrefix.length() > 0));
 
         // publishing the buybid
         // Create a gateway connection
         try {
             Gateway gateway = builder.connect();
-            secureRandom = new SecureRandom();
-            tokenEnergyDiscounted = new HashMap<String, Double>();
-            clientLastNonces = new HashMap<String, Integer>();
+            tokenEnergyDiscounted = new ConcurrentHashMap<String, Double>();
+            clientLastNonces = new ConcurrentHashMap<String, Integer>();
 
             // Obtain a smart contract deployed on the network.
             network = gateway.getNetwork("canal");
             // Contract contract = network.getContract("energy");
 
             // listen on HTTP SERVER
-            HttpServer server = HttpServer.create(new InetSocketAddress(Integer.parseInt(cmd.getOptionValue("port"))), 0);
+            HttpServer server = HttpServer.create(new InetSocketAddress(Integer.parseInt(cmd.getOptionValue("port"))),
+                    0);
             server.createContext("/noncerequest", new NonceRequestHandler());
             server.createContext("/discountrequest", new DiscountRequestHandler());
-            server.setExecutor(null);
+            int numberOfProcessors = Runtime.getRuntime().availableProcessors();
+            ExecutorService executor = Executors.newFixedThreadPool(numberOfProcessors);
+            server.setExecutor(executor);
             server.start();
-            
-            //Thread.currentThread().join();
 
+            // Thread.currentThread().join();
 
         } catch (Exception e) {
             e.printStackTrace();

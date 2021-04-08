@@ -42,9 +42,9 @@ docker-compose -f docker-compose.yml down --remove-orphans
 
 
 
-#find hyperledger/ -type f -delete
-#find hyperledger/ -type l -delete
-#find hyperledger/ -type d -delete
+find hyperledger/ -type f -delete
+find hyperledger/ -type l -delete
+find hyperledger/ -type d -delete
 
 
 

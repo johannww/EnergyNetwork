@@ -60,6 +60,11 @@ public class ArgParserBuyerTest {
         inDockerPrivateNetwork.setArgs(0);
         options.addOption(inDockerPrivateNetwork);
 
+        Option inAwsNetwork = new Option("awsnetwork", "awsnetwork", true,
+        "Flag to infor to test application that it will be run inside the aws network to fetch the correct 'connection-tls.json'");
+        inAwsNetwork.setArgs(0);
+        options.addOption(inAwsNetwork);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         formatter.setLongOptSeparator("\n");

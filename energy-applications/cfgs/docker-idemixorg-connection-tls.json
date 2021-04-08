@@ -26,13 +26,6 @@
                     "eventSource": true,
                     "discover": true
                 },
-                "peer2-ufsc": {
-                    "endorsingPeer": true,
-                    "chaincodeQuery": true,
-                    "ledgerQuery": true,
-                    "eventSource": true,
-                    "discover": true
-                },
                 "peer1-parma": {
                     "endorsingPeer": true,
                     "chaincodeQuery": true,
@@ -47,8 +40,7 @@
         "UFSC": {
             "mspid": "UFSC",
             "peers": [
-                "peer1-ufsc",
-                "peer2-ufsc"
+                "peer1-ufsc"
             ],
             "certificateAuthorities": [
                 "rca-ufsc"
@@ -131,17 +123,6 @@
             "grpcOptions": {
                 "ssl-target-name-override": "peer1-ufsc",
                 "hostnameOverride": "peer1-ufsc",
-                "request-timeout": 120001
-            },
-            "tlsCACerts": {
-                "path": "/EnergyNetwork/hyperledger/ufsc/msp/tlscacerts/tls-ca-cert.pem"
-            }
-        },
-        "peer2-ufsc": {
-            "url": "grpcs://peer2-ufsc:7051",
-            "grpcOptions": {
-                "ssl-target-name-override": "peer2-ufsc",
-                "hostnameOverride": "peer2-ufsc",
                 "request-timeout": 120001
             },
             "tlsCACerts": {

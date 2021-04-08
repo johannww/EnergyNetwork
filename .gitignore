@@ -5,7 +5,9 @@ hyperledger/
 chaincodeJSON/
 generated-config/
 generated-config-aws/
-
+*.txt
+git.key
+testbash.sh
 
 #
 # Visual Studio Code

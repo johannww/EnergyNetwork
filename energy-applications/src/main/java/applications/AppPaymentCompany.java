@@ -21,6 +21,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -36,6 +39,7 @@ import com.sun.net.httpserver.HttpServer;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.math3.util.Pair;
 import org.hyperledger.fabric.gateway.Contract;
+import org.hyperledger.fabric.gateway.DefaultCommitHandlers;
 import org.hyperledger.fabric.gateway.Gateway;
 import org.hyperledger.fabric.gateway.Identities;
 import org.hyperledger.fabric.gateway.Identity;
@@ -305,7 +309,8 @@ public class AppPaymentCompany {
 
         if (energyTransactions.size() > 0) {
             double soldKWH, pricePerKWH, sellerPayment = 0;
-            //String calculatedSellerId = calculateSellerId(sellerCertificate); REACTIVATE THIS OUTSIDE TEST CONTEXT!!!!!
+            // String calculatedSellerId = calculateSellerId(sellerCertificate); REACTIVATE
+            // THIS OUTSIDE TEST CONTEXT!!!!!
             String calculatedSellerId = sellerName;
 
             // get seller funds to increment with the payment
@@ -346,22 +351,22 @@ public class AppPaymentCompany {
     public static void main(String[] args) throws Exception {
 
         // enroll args
-        /*args = new String[] { "-e", "-u", "admin1-ufsc", "-pw", "admin1-ufsc", "-host", "https://localhost:7000",
-                "--cacert",
-                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\cacerts\\0-0-0-0-7000.pem",
-                "-w", "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp", "-msp",
-                "UFSC" };
-        // wallet path args
-        args = new String[] { "-w",
-                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp", "-msp",
-                "UFSC", "-u", "admin1-ufsc" };
-        // file path credentials args
+        /*
+         * args = new String[] { "-e", "-u", "admin1-ufsc", "-pw", "admin1-ufsc",
+         * "-host", "https://localhost:7000", "--cacert",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\cacerts\\0-0-0-0-7000.pem",
+         * "-w",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp",
+         * "-msp", "UFSC" }; // wallet path args args = new String[] { "-w",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp",
+         * "-msp", "UFSC", "-u", "admin1-ufsc" }; // file path credentials args
+         */
         args = new String[] { "--certificate",
                 "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\signcerts\\cert.pem",
                 "--privatekey",
                 "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp\\keystore\\key.pem",
                 "-w", "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\ufsc\\admin1\\msp", "-msp",
-                "UFSC", "-u", "admin1-ufsc", "-port", "81" };*/
+                "UFSC", "-u", "admin1-ufsc", "-port", "81" };
 
         // parsing payment company params
         ArgParserPaymentCompany pcParser = new ArgParserPaymentCompany();
@@ -371,20 +376,24 @@ public class AppPaymentCompany {
         Identity identity = ApplicationIdentityProvider.getX509Identity(cmd);
 
         // Path to a common connection profile describing the network.
-        String msp = cmd.getOptionValue("msp").toLowerCase();
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
-        Path networkConfigFile = Paths.get("cfgs", String.format("%s%s-connection-tls.json", dockerPrefix, msp));    
+        String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
+        String mspLower = cmd.getOptionValue("msp").toLowerCase();
+        Path networkConfigFile = Paths.get("cfgs",
+                String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
 
         // Configure the gateway connection used to access the network.
-        Gateway.Builder builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile).discovery(dockerPrefix.length()>0);
+        Gateway.Builder builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
+                .discovery((dockerPrefix.length() > 0) || (awsPrefix.length() > 0))
+                .commitHandler(DefaultCommitHandlers.PREFER_MSPID_SCOPE_ANYFORTX);
 
         // publishing the buybid
         // Create a gateway connection
         try {
             Gateway gateway = builder.connect();
-            tokenUser = new HashMap<String, UserFunds>();
-            clientNameUser = new HashMap<String, UserFunds>();
-            sellersPaidBids = new HashMap<String, PaidBids>();
+            tokenUser = new ConcurrentHashMap<String, UserFunds>();
+            clientNameUser = new ConcurrentHashMap<String, UserFunds>();
+            sellersPaidBids = new ConcurrentHashMap<String, PaidBids>();
 
             // Obtain a smart contract deployed on the network.
             network = gateway.getNetwork("canal");
@@ -426,10 +435,13 @@ public class AppPaymentCompany {
             server.createContext("/gettoken", new GetTokenHandler());
             server.createContext("/validatebuybid", new ValidateBuyBidHandler());
             server.createContext("/requestpayment", new RequestPaymentHandler());
-            server.setExecutor(null);
+            int numberOfProcessors = Runtime.getRuntime().availableProcessors();
+            // ExecutorService executor = Executors.newFixedThreadPool(numberOfProcessors);
+            ExecutorService executor = Executors.newCachedThreadPool();
+            server.setExecutor(executor);
             server.start();
 
-            //Thread.currentThread().join();
+            // Thread.currentThread().join();
 
         } catch (Exception e) {
             e.printStackTrace();

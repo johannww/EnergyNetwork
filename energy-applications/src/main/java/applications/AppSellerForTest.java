@@ -136,17 +136,18 @@ public class AppSellerForTest {
                 if (t.getName().equals("auctionPerformed")) {
                     try {
                         // prove to utility company
-                        String[] sellBidNumbers = new String[publishedBids.size()+1];
+                        String[] sellBidNumbers = new String[publishedBids.size() + 1];
                         sellBidNumbers[0] = sellerFullName;
                         int sellBidIndex = 1;
                         for (PublishedSellBid publishedBid : publishedBids)
                             sellBidNumbers[sellBidIndex++] = Integer.toString(publishedBid.bidNumber);
 
-                        byte[] response = contract.createTransaction("getEnergyTransactionsFromSellBidNumbersTestContext")
+                        byte[] response = contract
+                                .createTransaction("getEnergyTransactionsFromSellBidNumbersTestContext")
                                 .evaluate(sellBidNumbers);
                         String energyTransactionsJson = new String(response, StandardCharsets.UTF_8);
-                        requestPaymentForEnergyTransactions(sellerFullName, x509Id, energyTransactionsJson,
-                                publishedBids);
+                        //requestPaymentForEnergyTransactions(sellerFullName, x509Id, energyTransactionsJson,
+                                //publishedBids);
                     } catch (Exception e) {
                         System.out.println(e.getMessage());
                     }
@@ -179,11 +180,11 @@ public class AppSellerForTest {
          * "-msp", "UFSC", "-u", "seller1-ufsc", "--sell", "-kwh", "10", "-price", "4",
          * "-type", "solar" };
          * 
-         
+          
          args = new String[] { "-msp", "UFSC", "--basedir",
-         "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sellers", "1",
-         "--publishinterval", "2000", "--publishquantity", "1", "--paymentcompanyurl",
-         "http://localhost:81" };*/
+          "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sellers", "2",
+          "--publishinterval", "2000", "--publishquantity", "1", "--paymentcompanyurl",
+          "http://slocalhost:81" };*/
          
 
         ArgParserSellerTest testParser = new ArgParserSellerTest();
@@ -197,143 +198,145 @@ public class AppSellerForTest {
         int maxPublish = Integer.parseInt(cmd.getOptionValue("publishquantity"));
         paymentUrl = cmd.getOptionValue("paymentcompanyurl");
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
+        String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
 
-        CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
-        Thread[] threads = new Thread[THREAD_NUM + 1];
+        // parsing seller params
+        ArgParserSeller sellerParser = new ArgParserSeller();
+        Gateway.Builder builder;
+        Identity identity;
+        try {
+            String sellerNameIdentity = "seller1";
+            Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "seller1", "msp", "signcerts",
+                    "cert.pem");
+            Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "seller1", "msp", "keystore", "key.pem");
+            args = new String[] { "--certificate", certPath.toString(), "--privatekey", pkPath.toString(), "-msp",
+                    "UFSC", "-u", String.format("%s-ufsc", sellerNameIdentity), "--sell", "-kwh", "10", "-price", "4", "-type",
+                    "solar" };
+            cmd = sellerParser.parseArgs(args);
 
-        for (int i = 1; i <= THREAD_NUM; i++) {
+            // get seller identity
+            identity = ApplicationIdentityProvider.getX509Identity(cmd);
 
-            final int finalI = i;
-            threads[i] = new Thread() {
+            // Path to a common connection profile describing the network.
+            String mspLower = cmd.getOptionValue("msp").toLowerCase();
+            Path networkConfigFile = Paths.get("cfgs", String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
 
-                int threadNum = finalI;
-                CommandLine cmd;
-
-                public void run() {
-                    // parsing seller params
-                    ArgParserSeller sellerParser = new ArgParserSeller();
-                    Gateway.Builder builder;
-                    Identity identity;
-                    try {
-                        String sellerName = "seller" + Integer.toString(threadNum);
-                        Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "seller1", "msp",
-                                "signcerts", "cert.pem");
-                        Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "seller1", "msp",
-                                "keystore", "key.pem");
-                        String[] args = new String[] { "--certificate", certPath.toString(), "--privatekey",
-                                pkPath.toString(), "-msp", "UFSC", "-u", String.format("%s-ufsc", sellerName), "--sell",
-                                "-kwh", "10", "-price", "4", "-type", "solar" };
-                        cmd = sellerParser.parseArgs(args);
-
-                        // get seller identity
-                        identity = ApplicationIdentityProvider.getX509Identity(cmd);
-
-                        // Path to a common connection profile describing the network.
-                        String msp = cmd.getOptionValue("msp").toLowerCase();
-                        Path networkConfigFile = Paths.get("cfgs",
-                                String.format("%s%s-connection-tls.json", dockerPrefix, msp));
-
-                        // Configure the gateway connection used to access the network.
-                        builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
-                                .discovery(dockerPrefix.length() > 0);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new Error(
-                                String.format("Thread %d exiting with exception: " + e.getMessage(), threadNum));
-                    }
-
-                    // publishing the buybid
-                    // Create a gateway connection
-                    try (Gateway gateway = builder.connect()) {
-
-                        // Obtain a smart contract deployed on the network.
-                        Network network = gateway.getNetwork("canal");
-                        Contract contract = network.getContract("energy");
-                        List<PublishedSellBid> publishedBids = new LinkedList<PublishedSellBid>();
-                        String sellerFullName = cmd.getOptionValue("user");
-                        registerAuctionEventListener(contract, (X509Identity) identity, publishedBids, sellerFullName);
-
-                        Transaction transaction = null;
-                        try {
-                            transaction = contract.createTransaction("registerSellerTestContext");
-                            transaction.submit(sellerFullName, "2", "2");
-                        } catch (Exception e) {
-                            System.out.println(String.format("Seller %d probably already registered: " + e.getMessage(),
-                                    threadNum));
-                        }
-
-                        long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0, startTransaction = 0,
-                                singleSignatureTime = 0, startSignature;
-                        String generationBeginningTime, generationEndTime, randomGeneratedEnergy;
-                        generationBeginningTime = Long.toString(System.currentTimeMillis() / 1000L);
-                        // generationBeginningTime = "0";
-
-                        // hold all testing threads here until all are ready to go
-                        threadsBarrier.await();
-                        // Submit SellBid
-                        int publish = 0;
-                        // adding a little randomness to start time to avoid 100% sync among threads
-                        Thread.sleep(new Random().nextInt(500) + 10000);
-                        startExecution = System.currentTimeMillis();
-                        while (publish < maxPublish) {
-
-                            // calling register sellbid transaction publishEnergyGenerationTestContext
-                            startTransaction = System.currentTimeMillis();
-                            transaction = contract.createTransaction("publishEnergyGenerationTestContext");
-                            generationEndTime = Long.toString(System.currentTimeMillis() / 1000L);
-                            randomGeneratedEnergy = Double.toString(new Random().nextDouble() * 20 + 10);
-                            transaction.submit(sellerFullName, generationBeginningTime, generationEndTime,
-                                    "solar", randomGeneratedEnergy);
-                            generationBeginningTime = Long.toString(System.currentTimeMillis() / 1000L);
-                            transactionTimeWait += System.currentTimeMillis() - startTransaction;
-
-                            // calling register sellbid transaction
-                            startTransaction = System.currentTimeMillis();
-                            transaction = contract.createTransaction("registerSellBidTestContext");
-                            transaction.submit(sellerFullName, cmd.getOptionValue("energyquantitykwh"),
-                                    cmd.getOptionValue("priceperkwh"), cmd.getOptionValue("energytype"));
-                            transactionTimeWait += System.currentTimeMillis() - startTransaction;
-                            publishedBids.add(new PublishedSellBid(publish + 1,
-                                    Double.parseDouble(cmd.getOptionValue("energyquantitykwh"))));
-
-                            /*
-                             * transaction =
-                             * contract.createTransaction("getEnergyTransactionsFromFullSellBidKey");
-                             * transactionResult = transaction.evaluate("UFSC",
-                             * "eDUwOTo6Q049c2VsbGVyMS11ZnNjLE9VPWNsaWVudCtPVT11ZnNjLE89VUZTQyxMPUZsb3JpYW5vcG9saXMsU1Q9U0MsQz1CUjo6Q049cmNhLWNhLE9VPUZhYnJpYyxPPUh5cGVybGVkZ2VyLFNUPU5vcnRoIENhcm9saW5hLEM9VVM=",
-                             * "995");
-                             * 
-                             * String energyTransactionsJson = new String(transactionResult,
-                             * StandardCharsets.UTF_8); System.out.println(energyTransactionsJson);
-                             * X509Identity x509Id = (X509Identity) identity;
-                             * 
-                             * requestPaymentForEnergyTransactions("seller1-ufsc", x509Id,
-                             * energyTransactionsJson);
-                             */
-                            publish++;
-                            Thread.sleep(interval);
-                        }
-
-                        totalExecutionTime = System.currentTimeMillis() - startExecution;
-
-                        System.out.println(getClass().getName() + " Thread " + Integer.toString(threadNum) + " took "
-                                + Long.toString(transactionTimeWait) + "ms to submit " + Integer.toString(maxPublish)
-                                + " transactions of " + Long.toString(totalExecutionTime)
-                                + "ms total execution time. \nA single signature takes: "
-                                + Long.toString(singleSignatureTime) + "ms ");
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
-            };
-            threads[i].start();
+            // Configure the gateway connection used to access the network.
+            builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
+                    .discovery((dockerPrefix.length() > 0) || (awsPrefix.length() > 0));
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new Error(String.format("Exiting with exception: " + e.getMessage()));
         }
 
-        for (int i = 1; i <= THREAD_NUM; i++)
-            threads[i].join();
+        // Create a gateway connection for all threads
+        try (Gateway gateway = builder.connect()) {
 
-        System.out.println("ENDED!");
-        System.exit(0);
+            CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
+            Thread[] threads = new Thread[THREAD_NUM + 1];
+
+            for (int i = 1; i <= THREAD_NUM; i++) {
+
+                final int finalI = i;
+                threads[i] = new Thread() {
+
+                    int threadNum = finalI;
+                    //CommandLine cmd;
+
+                    public void run() {
+
+                        try {
+                            // Obtain a smart contract deployed on the network.
+                            Network network = gateway.getNetwork("canal");
+                            Contract contract = network.getContract("energy");
+                            List<PublishedSellBid> publishedBids = new LinkedList<PublishedSellBid>();
+                            String sellerFullName =  String.format("seller%d-%s", threadNum, cmd.getOptionValue("msp").toLowerCase());
+                            registerAuctionEventListener(contract, (X509Identity) identity, publishedBids,
+                                    sellerFullName);
+
+                            Transaction transaction = null;
+                            try {
+                                transaction = contract.createTransaction("registerSellerTestContext");
+                                transaction.submit(sellerFullName, "2", "2");
+                            } catch (Exception e) {
+                                System.out.println(String
+                                        .format("Seller %d probably already registered: " + e.getMessage(), threadNum));
+                            }
+
+                            long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0,
+                                    startTransaction = 0, singleSignatureTime = 0, startSignature;
+                            String generationBeginningTime, generationEndTime, randomGeneratedEnergy;
+                            generationBeginningTime = Long.toString(System.currentTimeMillis() / 1000L);
+                            // generationBeginningTime = "0";
+
+                            // hold all testing threads here until all are ready to go
+                            threadsBarrier.await();
+                            // Submit SellBid
+                            int publish = 0;
+                            // adding a little randomness to start time to avoid 100% sync among threads
+                            Thread.sleep(new Random().nextInt(500) + 10000);
+                            startExecution = System.currentTimeMillis();
+                            while (publish < maxPublish) {
+
+                                // calling register sellbid transaction publishEnergyGenerationTestContext
+                                startTransaction = System.currentTimeMillis();
+                                transaction = contract.createTransaction("publishEnergyGenerationTestContext");
+                                generationEndTime = Long.toString(System.currentTimeMillis() / 1000L);
+                                randomGeneratedEnergy = Double.toString(new Random().nextDouble() * 20 + 10);
+                                transaction.submit(sellerFullName, generationBeginningTime, generationEndTime, "solar",
+                                        randomGeneratedEnergy);
+                                generationBeginningTime = Long.toString(System.currentTimeMillis() / 1000L);
+                                transactionTimeWait += System.currentTimeMillis() - startTransaction;
+
+                                // calling register sellbid transaction
+                                startTransaction = System.currentTimeMillis();
+                                transaction = contract.createTransaction("registerSellBidTestContext");
+                                transaction.submit(sellerFullName, cmd.getOptionValue("energyquantitykwh"),
+                                        cmd.getOptionValue("priceperkwh"), cmd.getOptionValue("energytype"));
+                                transactionTimeWait += System.currentTimeMillis() - startTransaction;
+                                publishedBids.add(new PublishedSellBid(publish + 1,
+                                        Double.parseDouble(cmd.getOptionValue("energyquantitykwh"))));
+
+                                /*
+                                 * transaction =
+                                 * contract.createTransaction("getEnergyTransactionsFromFullSellBidKey");
+                                 * transactionResult = transaction.evaluate("UFSC",
+                                 * "eDUwOTo6Q049c2VsbGVyMS11ZnNjLE9VPWNsaWVudCtPVT11ZnNjLE89VUZTQyxMPUZsb3JpYW5vcG9saXMsU1Q9U0MsQz1CUjo6Q049cmNhLWNhLE9VPUZhYnJpYyxPPUh5cGVybGVkZ2VyLFNUPU5vcnRoIENhcm9saW5hLEM9VVM=",
+                                 * "995");
+                                 * 
+                                 * String energyTransactionsJson = new String(transactionResult,
+                                 * StandardCharsets.UTF_8); System.out.println(energyTransactionsJson);
+                                 * X509Identity x509Id = (X509Identity) identity;
+                                 * 
+                                 * requestPaymentForEnergyTransactions("seller1-ufsc", x509Id,
+                                 * energyTransactionsJson);
+                                 */
+                                publish++;
+                                Thread.sleep(interval);
+                            }
+
+                            totalExecutionTime = System.currentTimeMillis() - startExecution;
+
+                            System.out.println(getClass().getName() + " Thread " + Integer.toString(threadNum)
+                                    + " took " + Long.toString(transactionTimeWait) + "ms to submit "
+                                    + Integer.toString(maxPublish) + " transactions of "
+                                    + Long.toString(totalExecutionTime)
+                                    + "ms total execution time. \nA single signature takes: "
+                                    + Long.toString(singleSignatureTime) + "ms ");
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                };
+                threads[i].start();
+            }
+
+            for (int i = 1; i <= THREAD_NUM; i++)
+                threads[i].join();
+
+            System.out.println("ENDED!");
+            System.exit(0);
+        }
     }
 }

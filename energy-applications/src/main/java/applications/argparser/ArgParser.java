@@ -61,6 +61,11 @@ public abstract class ArgParser {
         inDockerPrivateNetwork.setArgs(0);
         options.addOption(inDockerPrivateNetwork);
         
+        Option inAwsNetwork = new Option("awsnetwork", "awsnetwork", true,
+        "Flag to infor to test application that it will be run inside the aws network to fetch the correct 'connection-tls.json'");
+        inAwsNetwork.setArgs(0);
+        options.addOption(inAwsNetwork);
+
         // take more args
         addSpecificOptions(args);
 
@@ -79,9 +84,12 @@ public abstract class ArgParser {
 
         // print help if the 'help' option is present
         if (cmd.hasOption("help")) {
-            formatter.printHelp("Buyer.jar", header, options, "");
+            formatter.printHelp(this.getClass().getName()+".jar", header, options, "");
             System.exit(1);
         }
+
+        if (cmd.hasOption("dockernetwork") && cmd.hasOption("awsnetwork"))
+            throw new Error("Choose either --dockernetwork or --awsnetwork");
 
         checkSpecific();
         return cmd;

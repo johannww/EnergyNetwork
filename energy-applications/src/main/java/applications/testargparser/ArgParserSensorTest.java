@@ -55,6 +55,11 @@ public class ArgParserSensorTest {
         inDockerPrivateNetwork.setArgs(0);
         options.addOption(inDockerPrivateNetwork);
 
+        Option inAwsNetwork = new Option("awsnetwork", "awsnetwork", true,
+        "Flag to infor to test application that it will be run inside the aws network to fetch the correct 'connection-tls.json'");
+        inAwsNetwork.setArgs(0);
+        options.addOption(inAwsNetwork);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         formatter.setLongOptSeparator("\n");
@@ -65,7 +70,7 @@ public class ArgParserSensorTest {
             cmd = parser.parse(options, args);
         } catch (ParseException e) {
             System.out.println(e.getMessage());
-            formatter.printHelp("Buyer.jar", header, options, "");
+            formatter.printHelp("SensorForTest.jar", header, options, "");
             System.exit(1);
         }
 

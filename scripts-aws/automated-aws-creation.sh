@@ -432,7 +432,6 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
             docker logs orderer\$ORDERER_NUMBER-\$ORG_NAME  
 EOF
     done
-    exit 1
 done
 
 #

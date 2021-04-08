@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.sql.Timestamp;
 import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
@@ -92,6 +93,7 @@ public class AppBuyerForTest {
         }
         try (InputStream in = http.getInputStream()) {
             response = new String(in.readAllBytes());
+            System.out.println(response);
             in.close();
         }
         return response;
@@ -153,11 +155,12 @@ public class AppBuyerForTest {
 
                             double energyQuantitySettledByTransactions = Double.parseDouble(new String(response));
                             if (energyQuantitySettledByTransactions > publishedBid.energyQuantitySettled) {
-                                int utilityNonce = getUtilityCompanyNonce();
+                                //int utilityNonce = getUtilityCompanyNonce();
+                                int utilityNonce = 12341323;
                                 byte[] ipkOwnershipSignatureProof = publishedBid.signingId
                                         .sign((publishedBid.transactionID + Integer.toString(utilityNonce)).getBytes());
-                                requestEnergyDiscount(buyerFullName, publishedBid.transactionID, publishedBid.ipk,
-                                        ipkOwnershipSignatureProof);
+                                //requestEnergyDiscount(buyerFullName, publishedBid.transactionID, publishedBid.ipk,
+                                        //ipkOwnershipSignatureProof);
                                 publishedBid.energyQuantitySettled += energyQuantitySettledByTransactions;
                                 if (publishedBid.isFullySatisfied())
                                     publishedBids.remove(publishedBid);
@@ -170,6 +173,18 @@ public class AppBuyerForTest {
             }
         };
         contract.addContractListener(auctionPerfomedListener, "auctionPerformed");
+    }
+
+    private static String simluateGetToken() throws Exception {
+        // generate Random String
+        byte[] auxBytes = new byte[16];
+        new Random().nextBytes(auxBytes);
+        String token = new String(Base64.getEncoder().encode(auxBytes));
+
+        // concatenate with the timestamp
+        token += Long.toString(new Timestamp(System.currentTimeMillis()).getTime());
+
+        return token;
     }
 
     public static void main(String[] args) throws Exception {
@@ -193,11 +208,10 @@ public class AppBuyerForTest {
          * "-pci", "UFSC", "-token", "tokentest1", "-kwh", "10", "-price", "50",
          * "-type", "solar" };
          
-         args = new String[] { "-msp", "IDEMIXORG", "--basedir",
-          "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--buyers", "1",
-         "--publishinterval", "2000", "--publishquantity", "50", "--utilityurl",
-          "http://localhost", "--paymentcompanyurl", "http://localhost:81" };*/
-         
+        args = new String[] { "-msp", "IDEMIXORG", "--basedir",
+                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--buyers", "3", "--publishinterval",
+                "2000", "--publishquantity", "1", "--utilityurl", "http://localhost", "--paymentcompanyurl",
+                "http://localhost:81" };*/
 
         ArgParserBuyerTest testParser = new ArgParserBuyerTest();
 
@@ -211,152 +225,158 @@ public class AppBuyerForTest {
         paymentUrl = cmd.getOptionValue("paymentcompanyurl");
         utilityUrl = cmd.getOptionValue("utilityurl");
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
+        String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
 
+        /*
+         * final Set<String> algorithms = Security.getAlgorithms("SecureRandom");
+         * 
+         * for (String algorithm : algorithms) { System.out.println(algorithm); }
+         * 
+         * final String defaultAlgorithm = new SecureRandom().getAlgorithm();
+         * System.out.println("default: " + defaultAlgorithm);
+         * 
+         * for (int i = 0; i < 50; i++) { System.out.println(new
+         * SecureRandom().generateSeed(32)); }
+         * 
+         * System.out.println( System.getProperty("securerandom.source"));
+         * System.out.println( System.getProperty("java.security.egd"));
+         * 
+         * System.exit(1);
+         */
 
-        /*final Set<String> algorithms = Security.getAlgorithms("SecureRandom");
+        // parsing buyer params
+        ArgParserBuyer buyerParser = new ArgParserBuyer();
+        Gateway.Builder builder;
+        IdemixIdentity idemixId;
+        try {
+            String buyerNameIdentity = "buyer1";
+            Path idemixCredsPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "buyer1", "msp");
+            args = new String[] { "-cp", idemixCredsPath.toString(), "-msp", msp, "-u",
+                    String.format("%s-%s", buyerNameIdentity, msp.toLowerCase()), "-pci", "UFSC", "-kwh", "10", "-price", "50",
+                    "-type", "solar", "-token", "tokentest1" };
+            cmd = buyerParser.parseArgs(args);
 
-        for (String algorithm : algorithms) {
-          System.out.println(algorithm);
+            // get buyer's idemix identity
+            idemixId = ApplicationIdentityProvider.getIdemixIdentity(cmd);
+
+            // Path to a common connection profile describing the network.
+            String mspLower = cmd.getOptionValue("msp").toLowerCase();
+            Path networkConfigFile = Paths.get("cfgs", String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
+
+            // Configure the gateway connection used to access the network.
+            builder = Gateway.createBuilder().identity(idemixId).networkConfig(networkConfigFile)
+                    .discovery((dockerPrefix.length() > 0) || (awsPrefix.length() > 0));
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new Error(String.format("Exiting with exception: " + e.getMessage()));
         }
-    
-        final String defaultAlgorithm = new SecureRandom().getAlgorithm();
-        System.out.println("default: " + defaultAlgorithm);
-    
-        for (int i = 0; i < 50; i++) {
-            System.out.println(new SecureRandom().generateSeed(32));
-        }
+        // publishing the buybid
+        // Create a gateway connection
+        try (Gateway gateway = builder.connect()) {
 
-        System.out.println( System.getProperty("securerandom.source"));
-        System.out.println( System.getProperty("java.security.egd"));
+            CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
+            Thread[] threads = new Thread[THREAD_NUM + 1];
 
-        System.exit(1);*/
+            for (int i = 1; i <= THREAD_NUM; i++) {
+
+                final int finalI = i;
+                threads[i] = new Thread() {
+
+                    int threadNum = finalI;
+                    //CommandLine cmd;
+
+                    public void run() {
+                        try {
+                            // Obtain a smart contract deployed on the network.
+                            Network network = gateway.getNetwork("canal");
+                            Contract contract = network.getContract("energy");
+
+                            List<PublishedBuyBid> publishedBids = new LinkedList<PublishedBuyBid>();
+                            String buyerFullName = String.format("buyer%d-%s", threadNum, cmd.getOptionValue("msp").toLowerCase());
+                            registerAuctionEventListener(contract, publishedBids, buyerFullName);
+
+                            long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0,
+                                    startTransaction = 0, singleSignatureTime = 0, startSignature;
+
+                            // Putting funds on buyer accounts to request token
+                            //putFundsOnPaymentAccount(1000000, buyerFullName);
+
+                            threadsBarrier.await();
+                            startExecution = System.currentTimeMillis();
+
+                            int publish = 0;
+                            // adding a little randomness to start time to avoid 100% sync among threads
+                            Thread.sleep(new Random().nextInt(500) + 2000);
+                            while (publish < maxPublish) {
+                                // Request token to Payment Company
+                                //String token = requestPaymentToken(buyerFullName);
+                                String token = simluateGetToken();
+
+                                // Submit BuyBid
+                                startTransaction = System.currentTimeMillis();
+                                String paymentCompanyId = cmd.getOptionValue("paymentcompanyid");
+                                String utilityCompanyId = "UFSC";
+                                String energyQuantity = cmd.getOptionValue("energyquantitykwh");
+                                String pricePerKwh = cmd.getOptionValue("priceperkwh");
+                                String energyType = cmd.getOptionValue("energytype");
+                                Transaction transaction = contract.createTransaction("registerBuyBid");
+                                transaction.submit(paymentCompanyId, token, utilityCompanyId,
+                                        energyQuantity, pricePerKwh, energyType);
+                                transactionTimeWait += System.currentTimeMillis() - startTransaction;
+                                // Request BuyBid validation to the Payment Company
+                                //requestBuyBidValidation(token, buyerFullName);
 
 
-        CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
-        Thread[] threads = new Thread[THREAD_NUM + 1];
+                                TransactionContext transactionContext = transaction.getTransactionContext();
 
-        for (int i = 1; i <= THREAD_NUM; i++) {
+                                String transactionID = transaction.getTransactionId();
 
-            final int finalI = i;
-            threads[i] = new Thread() {
+                                // get Ipk and signing identity to send to utility company for verification
+                                IssuerPublicKey ipk = idemixId.getIpk().toProto();
+                                IdemixSigningIdentity signingId = (IdemixSigningIdentity) transactionContext
+                                        .getSigningIdentity();
 
-                int threadNum = finalI;
-                CommandLine cmd;
+                                // signingId.getNym();
 
-                public void run() {
+                                publishedBids.add(new PublishedBuyBid(paymentCompanyId, token, transactionID, ipk,
+                                        signingId, Double.parseDouble(energyQuantity)));
 
-                    // parsing buyer params
-                    ArgParserBuyer buyerParser = new ArgParserBuyer();
-                    Gateway.Builder builder;
-                    IdemixIdentity idemixId;
-                    try {
-                        String buyerName = "buyer" + Integer.toString(threadNum);
-                        Path idemixCredsPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "buyer1", "msp");
-                        String[] args = new String[] { "-cp", idemixCredsPath.toString(), "-msp", msp, "-u",
-                                String.format("%s-%s", buyerName, msp.toLowerCase()), "-pci", "UFSC", "-kwh", "10",
-                                "-price", "50", "-type", "solar", "-token", "tokentest1" };
-                        cmd = buyerParser.parseArgs(args);
+                                // simulate BuyBid validation
+                                transaction = contract.createTransaction("validateBuyBidTestContext");
+                                transaction.submit(paymentCompanyId, token);
 
-                        // get buyer's idemix identity
-                        idemixId = ApplicationIdentityProvider.getIdemixIdentity(cmd);
+                                publish++;
+                                Thread.sleep(interval);
+                            }
+                            totalExecutionTime = System.currentTimeMillis() - startExecution;
 
-                        // Path to a common connection profile describing the network.
-                        String msp = cmd.getOptionValue("msp").toLowerCase();
-                        Path networkConfigFile = Paths.get("cfgs",
-                                String.format("%s%s-connection-tls.json", dockerPrefix, msp));
+                            System.out.println(getClass().getName() + " Thread " + Integer.toString(threadNum)
+                                    + " took " + Long.toString(transactionTimeWait) + "ms to submit "
+                                    + Integer.toString(maxPublish) + " transactions of "
+                                    + Long.toString(totalExecutionTime)
+                                    + "ms total execution time. \nA single signature takes: "
+                                    + Long.toString(singleSignatureTime) + "ms ");
 
-                        // Configure the gateway connection used to access the network.
-                        builder = Gateway.createBuilder().identity(idemixId).networkConfig(networkConfigFile)
-                                .discovery(dockerPrefix.length() > 0);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new Error(
-                                String.format("Thread %d exiting with exception: " + e.getMessage(), threadNum));
-                    }
-                    // publishing the buybid
-                    // Create a gateway connection
-                    try (Gateway gateway = builder.connect()) {
-
-                        // Obtain a smart contract deployed on the network.
-                        Network network = gateway.getNetwork("canal");
-                        Contract contract = network.getContract("energy");
-
-                        List<PublishedBuyBid> publishedBids = new LinkedList<PublishedBuyBid>();
-                        String buyerFullName = cmd.getOptionValue("user");
-                        registerAuctionEventListener(contract, publishedBids, buyerFullName);
-
-                        long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0, startTransaction = 0,
-                                singleSignatureTime = 0, startSignature;
-
-                        // Putting funds on buyer accounts to request token
-                        putFundsOnPaymentAccount(1000000, buyerFullName);
-
-                        threadsBarrier.await();
-                        startExecution = System.currentTimeMillis();
-
-                        int publish = 0;
-                        // adding a little randomness to start time to avoid 100% sync among threads
-                        Thread.sleep(new Random().nextInt(500) + 2000);
-                        while (publish < maxPublish) {
-                            // Request token to Payment Company
-                            String token = requestPaymentToken(buyerFullName);
-
-                            // Submit BuyBid
-                            startTransaction = System.currentTimeMillis();
-                            String paymentCompanyId = cmd.getOptionValue("paymentcompanyid");
-                            String utilityCompanyId = "UFSC";
-                            String energyQuantity = cmd.getOptionValue("energyquantitykwh");
-                            String pricePerKwh = cmd.getOptionValue("priceperkwh");
-                            String energyType = cmd.getOptionValue("energytype");
-                            Transaction transaction = contract.createTransaction("registerBuyBid");
-                            byte[] transactionResult = transaction.submit(paymentCompanyId, token, utilityCompanyId,
-                                    energyQuantity, pricePerKwh, energyType);
-                            transactionTimeWait += System.currentTimeMillis() - startTransaction;
-
-                            // Request BuyBid validation to the Payment Company
-                            requestBuyBidValidation(token, buyerFullName);
-
-                            TransactionContext transactionContext = transaction.getTransactionContext();
-
-                            String transactionID = transaction.getTransactionId();
-
-                            // get Ipk and signing identity to send to utility company for verification
-                            IssuerPublicKey ipk = idemixId.getIpk().toProto();
-                            IdemixSigningIdentity signingId = (IdemixSigningIdentity) transactionContext
-                                    .getSigningIdentity();
-
-                            // signingId.getNym();
-
-                            publishedBids.add(new PublishedBuyBid(paymentCompanyId, token, transactionID, ipk,
-                                    signingId, Double.parseDouble(energyQuantity)));
-
-                            publish++;
-                            Thread.sleep(interval);
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            throw new Error(
+                                    String.format("Thread %d exiting with exception: " + e.getMessage(), threadNum));
                         }
-                        totalExecutionTime = System.currentTimeMillis() - startExecution;
-
-                        System.out.println(getClass().getName() + " Thread " + Integer.toString(threadNum) + " took "
-                                + Long.toString(transactionTimeWait) + "ms to submit " + Integer.toString(maxPublish)
-                                + " transactions of " + Long.toString(totalExecutionTime)
-                                + "ms total execution time. \nA single signature takes: "
-                                + Long.toString(singleSignatureTime) + "ms ");
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        throw new Error(
-                                String.format("Thread %d exiting with exception: " + e.getMessage(), threadNum));
                     }
-                }
-            };
-            threads[i].start();
+                };
+                threads[i].start();
+            }
+            // save SOMEHOW the idemix params for proving the buybid to the utility company
+
+            for (int i = 1; i <= THREAD_NUM; i++)
+                threads[i].join();
+
+            System.out.println("ENDED!");
+            System.exit(0);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new Error(String.format("Program exiting with exception: " + e.getMessage()));
         }
-        // save SOMEHOW the idemix params for proving the buybid to the utility company
 
-        for (int i = 1; i <= THREAD_NUM; i++)
-            threads[i].join();
-
-        System.out.println("ENDED!");
-        System.exit(0);
     }
-
 }

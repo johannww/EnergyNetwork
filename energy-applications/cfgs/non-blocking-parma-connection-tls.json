@@ -26,13 +26,6 @@
                     "eventSource": false,
                     "discover": false
                 },
-                "peer2-ufsc": {
-                    "endorsingPeer": true,
-                    "chaincodeQuery": true,
-                    "ledgerQuery": true,
-                    "eventSource": false,
-                    "discover": false
-                },
                 "peer1-parma": {
                     "endorsingPeer": true,
                     "chaincodeQuery": true,
@@ -47,8 +40,7 @@
         "UFSC": {
             "mspid": "UFSC",
             "peers": [
-                "peer1-ufsc",
-                "peer2-ufsc"
+                "peer1-ufsc"
             ],
             "certificateAuthorities": [
                 "rca-ufsc"
@@ -137,19 +129,8 @@
                 "path": "D:/UFSC/Mestrado/Hyperledger/Fabric/EnergyNetwork/hyperledger/ufsc/msp/tlscacerts/tls-ca-cert.pem"
             }
         },
-        "peer2-ufsc": {
-            "url": "grpcs://localhost:7006",
-            "grpcOptions": {
-                "ssl-target-name-override": "peer2-ufsc",
-                "hostnameOverride": "peer2-ufsc",
-                "request-timeout": 120001
-            },
-            "tlsCACerts": {
-                "path": "D:/UFSC/Mestrado/Hyperledger/Fabric/EnergyNetwork/hyperledger/ufsc/msp/tlscacerts/tls-ca-cert.pem"
-            }
-        },
         "peer1-parma": {
-            "url": "grpcs://localhost:7007",
+            "url": "grpcs://localhost:7006",
             "grpcOptions": {
                 "ssl-target-name-override": "peer1-parma",
                 "hostnameOverride": "peer1-parma",
