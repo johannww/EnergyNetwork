@@ -146,8 +146,9 @@ public class AppSellerForTest {
                                 .createTransaction("getEnergyTransactionsFromSellBidNumbersTestContext")
                                 .evaluate(sellBidNumbers);
                         String energyTransactionsJson = new String(response, StandardCharsets.UTF_8);
-                        //requestPaymentForEnergyTransactions(sellerFullName, x509Id, energyTransactionsJson,
-                                //publishedBids);
+                        // requestPaymentForEnergyTransactions(sellerFullName, x509Id,
+                        // energyTransactionsJson,
+                        // publishedBids);
                     } catch (Exception e) {
                         System.out.println(e.getMessage());
                     }
@@ -180,12 +181,12 @@ public class AppSellerForTest {
          * "-msp", "UFSC", "-u", "seller1-ufsc", "--sell", "-kwh", "10", "-price", "4",
          * "-type", "solar" };
          * 
-          
-         args = new String[] { "-msp", "UFSC", "--basedir",
-          "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sellers", "2",
-          "--publishinterval", "2000", "--publishquantity", "1", "--paymentcompanyurl",
-          "http://slocalhost:81" };*/
-         
+         * 
+         * args = new String[] { "-msp", "UFSC", "--basedir",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sellers", "2",
+         * "--publishinterval", "2000", "--publishquantity", "1", "--paymentcompanyurl",
+         * "http://slocalhost:81" };
+         */
 
         ArgParserSellerTest testParser = new ArgParserSellerTest();
 
@@ -210,8 +211,8 @@ public class AppSellerForTest {
                     "cert.pem");
             Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "seller1", "msp", "keystore", "key.pem");
             args = new String[] { "--certificate", certPath.toString(), "--privatekey", pkPath.toString(), "-msp",
-                    "UFSC", "-u", String.format("%s-ufsc", sellerNameIdentity), "--sell", "-kwh", "10", "-price", "4", "-type",
-                    "solar" };
+                    "UFSC", "-u", String.format("%s-ufsc", sellerNameIdentity), "--sell", "-kwh", "10", "-price", "4",
+                    "-type", "solar" };
             cmd = sellerParser.parseArgs(args);
 
             // get seller identity
@@ -219,7 +220,8 @@ public class AppSellerForTest {
 
             // Path to a common connection profile describing the network.
             String mspLower = cmd.getOptionValue("msp").toLowerCase();
-            Path networkConfigFile = Paths.get("cfgs", String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
+            Path networkConfigFile = Paths.get("cfgs",
+                    String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
 
             // Configure the gateway connection used to access the network.
             builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
@@ -231,7 +233,9 @@ public class AppSellerForTest {
 
         // Create a gateway connection for all threads
         try (Gateway gateway = builder.connect()) {
-
+            // Obtain a smart contract deployed on the network.
+            Network network = gateway.getNetwork("canal");
+            Contract contract = network.getContract("energy");
             CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
             Thread[] threads = new Thread[THREAD_NUM + 1];
 
@@ -241,16 +245,15 @@ public class AppSellerForTest {
                 threads[i] = new Thread() {
 
                     int threadNum = finalI;
-                    //CommandLine cmd;
+                    // CommandLine cmd;
 
                     public void run() {
 
                         try {
-                            // Obtain a smart contract deployed on the network.
-                            Network network = gateway.getNetwork("canal");
-                            Contract contract = network.getContract("energy");
+
                             List<PublishedSellBid> publishedBids = new LinkedList<PublishedSellBid>();
-                            String sellerFullName =  String.format("seller%d-%s", threadNum, cmd.getOptionValue("msp").toLowerCase());
+                            String sellerFullName = String.format("seller%d-%s", threadNum,
+                                    cmd.getOptionValue("msp").toLowerCase());
                             registerAuctionEventListener(contract, (X509Identity) identity, publishedBids,
                                     sellerFullName);
 

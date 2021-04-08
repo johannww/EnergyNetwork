@@ -116,11 +116,11 @@ public class AppSensorForTest {
          * "-msp", "UFSC", "-u", "sensor1-ufsc", "-unit", "3834792229",
          * "--publishinterval", "2", "--publishquantity", "50" };
          * 
-         *  
-          args = new String[] { "-msp", "UFSC", "--basedir",
-          "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sensors", "100",
-         "--unit", "3834792229", "--publishinterval", "2", "--publishquantity", "1" };*/
-        
+         * 
+         * args = new String[] { "-msp", "UFSC", "--basedir",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sensors", "100",
+         * "--unit", "3834792229", "--publishinterval", "2", "--publishquantity", "1" };
+         */
 
         ArgParserSensorTest testParser = new ArgParserSensorTest();
 
@@ -144,8 +144,8 @@ public class AppSensorForTest {
             Path certPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "sensor1", "msp", "signcerts",
                     "cert.pem");
             Path pkPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "sensor1", "msp", "keystore", "key.pem");
-            args = new String[] { "--certificate", certPath.toString(), "--privatekey", pkPath.toString(),
-                    "-msp", "UFSC", "-u",  String.format(sensorNameIdentity+"-%s", cmd.getOptionValue("msp").toLowerCase()) };
+            args = new String[] { "--certificate", certPath.toString(), "--privatekey", pkPath.toString(), "-msp",
+                    "UFSC", "-u", String.format(sensorNameIdentity + "-%s", cmd.getOptionValue("msp").toLowerCase()) };
             cmd = sensorParser.parseArgs(args);
 
             // get the sensor's identity
@@ -153,7 +153,8 @@ public class AppSensorForTest {
 
             // Path to a common connection profile describing the network.
             String mspLower = cmd.getOptionValue("msp").toLowerCase();
-            Path networkConfigFile = Paths.get("cfgs", String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
+            Path networkConfigFile = Paths.get("cfgs",
+                    String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
 
             // Configure the gateway connection used to access the network.
             builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
@@ -162,8 +163,12 @@ public class AppSensorForTest {
             e.printStackTrace();
             throw new Error(String.format("Exiting with exception: " + e.getMessage()));
         }
+
         try (Gateway gateway = builder.connect()) {
 
+            // Obtain a smart contract deployed on the network.
+            Network network = gateway.getNetwork("canal");
+            Contract contract = network.getContract("energy");
             CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
             Thread[] threads = new Thread[THREAD_NUM + 1];
 
@@ -173,23 +178,19 @@ public class AppSensorForTest {
                 threads[i] = new Thread() {
 
                     int threadNum = finalI;
-                    //CommandLine cmd;
+                    // CommandLine cmd;
 
                     public void run() {
 
                         // Create a gateway connection
                         try {
 
-                            // Obtain a smart contract deployed on the network.
-                            Network network = gateway.getNetwork("canal");
-                            Contract contract = network.getContract("energy");
-
-                            String sensorFullName = String.format("sensor%d-%s", threadNum, cmd.getOptionValue("msp").toLowerCase());
+                            String sensorFullName = String.format("sensor%d-%s", threadNum,
+                                    cmd.getOptionValue("msp").toLowerCase());
 
                             long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0,
                                     startTransaction = 0, singleSignatureTime = 0, startSignature;
                             Transaction transaction = null;
-
 
                             try {
                                 transaction = contract.createTransaction("sensorDeclareActiveTestContext");

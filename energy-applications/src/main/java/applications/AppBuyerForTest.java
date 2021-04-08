@@ -274,6 +274,9 @@ public class AppBuyerForTest {
         // Create a gateway connection
         try (Gateway gateway = builder.connect()) {
 
+            Network network = gateway.getNetwork("canal");
+            Contract contract = network.getContract("energy");
+
             CyclicBarrier threadsBarrier = new CyclicBarrier(THREAD_NUM);
             Thread[] threads = new Thread[THREAD_NUM + 1];
 
@@ -288,8 +291,6 @@ public class AppBuyerForTest {
                     public void run() {
                         try {
                             // Obtain a smart contract deployed on the network.
-                            Network network = gateway.getNetwork("canal");
-                            Contract contract = network.getContract("energy");
 
                             List<PublishedBuyBid> publishedBids = new LinkedList<PublishedBuyBid>();
                             String buyerFullName = String.format("buyer%d-%s", threadNum, cmd.getOptionValue("msp").toLowerCase());
