@@ -31,6 +31,9 @@ import (
 type EnergyChaincode struct {
 }
 
+//functionMap to make function calls faster
+var functionMap map[string]func(shim.ChaincodeStubInterface, []string) pb.Response
+
 //accept timestamp delay of XX seconds
 var acceptedDelay uint64 = 30
 
@@ -2145,13 +2148,25 @@ func (chaincode *EnergyChaincode) Init(stub shim.ChaincodeStubInterface) pb.Resp
 	//_, args := stub.GetFunctionAndParameters()
 
 	return shim.Success(nil)
+
 }
 
 //Invoke calls a function using the "peer chaincode invoke" command
 func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	fmt.Println("energy Invoke")
 	function, args := stub.GetFunctionAndParameters()
-	lenArgs := len(args)
+
+	if functionPointer, ok := functionMap[function]; ok {
+		now := time.Now()
+		defer func() {
+			elapsed := time.Since(now)
+			fmt.Printf("Function: %s took \n", function)
+			fmt.Println(elapsed)
+		}()
+		return functionPointer(stub, args)
+	}
+
+	/*lenArgs := len(args)
 	if function == "sensorDeclareActive" {
 		return chaincode.sensorDeclareActive(stub)
 	} else if function == "disableSensors" {
@@ -2309,12 +2324,211 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 		} else if function == "validateBuyBidTestContext" {
 			return chaincode.validateBuyBidTestContext(stub, args[0], args[1])
 		}
-	}
-	return shim.Error("Invalid invoke function name. Expecting \"invoke\" \"delete\" \"query\"")
+	}*/
+	return shim.Error("Invalid invoke function name")
 }
 
 func main() {
-	err := shim.Start(new(EnergyChaincode))
+	chaincode := new(EnergyChaincode)
+
+	functionMap = map[string]func(shim.ChaincodeStubInterface, []string) pb.Response{
+		"sensorDeclareActive": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.sensorDeclareActive(stub)
+		},
+		"disableSensors": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.disableSensors(stub, args)
+		},
+		"enableSensors": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.enableSensors(stub, args)
+		},
+		"getActiveSensors": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getActiveSensors(stub)
+		},
+		"setTrustedSensors": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			lenArgs := len(args)
+			return chaincode.setTrustedSensors(stub, args[:lenArgs/2], args[lenArgs/2:])
+		},
+		"setDistrustedSensors": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			lenArgs := len(args)
+			return chaincode.setDistrustedSensors(stub, args[:lenArgs/2], args[lenArgs/2:])
+		},
+		"getTrustedSensors": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getTrustedSensors(stub)
+		},
+		"publishSensorData": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			versionInt, _ := strconv.Atoi(args[0])
+			version := int8(versionInt)
+			unit64, _ := strconv.ParseUint(args[1], 10, 32)
+			unit := uint32(unit64)
+			timestamp, _ := strconv.ParseUint(args[2], 10, 64)
+			value, _ := strconv.ParseFloat(args[3], 64)
+			eUint, _ := strconv.ParseUint(args[4], 10, 8)
+			e := uint8(eUint)
+			confidenceUint, _ := strconv.ParseUint(args[5], 10, 8)
+			confidence := uint8(confidenceUint)
+			dev, _ := strconv.ParseUint(args[6], 10, 32)
+			return chaincode.publishSensorData(stub, version, unit, timestamp, value, e, confidence, uint32(dev))
+		},
+		"getSensorsPublishedData": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getSensorsPublishedData(stub, args)
+		},
+		"registerSeller": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			windTurbinesNumber, _ := strconv.ParseUint(args[3], 10, 64)
+			solarPanelsNumber, _ := strconv.ParseUint(args[4], 10, 64)
+			return chaincode.registerSeller(stub, args[0], args[1], args[2], windTurbinesNumber, solarPanelsNumber)
+		},
+		"publishEnergyGeneration": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			t0, _ := strconv.ParseUint(args[0], 10, 64)
+			t1, _ := strconv.ParseUint(args[1], 10, 64)
+			if len(args)%2 != 0 || len(args) > 2+len(EnergyTypes) {
+				return shim.Error("Wrong number of arguments for function publishEnergyGeneration")
+			}
+			energyByTypeGeneratedKWH := make(map[string]float64)
+			for i := 2; i < len(args); i += 2 {
+				energyByTypeGeneratedKWH[args[i]], _ = strconv.ParseFloat(args[i+1], 64)
+			}
+			return chaincode.publishEnergyGeneration(stub, t0, t1, energyByTypeGeneratedKWH)
+		},
+		"registerSellBid": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			amountKWH, _ := strconv.ParseFloat(args[0], 64)
+			pricePerKWH, _ := strconv.ParseFloat(args[1], 64)
+			return chaincode.registerSellBid(stub, amountKWH, pricePerKWH, args[2])
+		},
+		"registerBuyBid": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			amountKWH, _ := strconv.ParseFloat(args[3], 64)
+			pricePerKWH, _ := strconv.ParseFloat(args[4], 64)
+			return chaincode.registerBuyBid(stub, args[0], args[1], args[2], amountKWH, pricePerKWH, args[5])
+		},
+		"validateBuyBid": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			maxBuyBidPaymentCover, _ := strconv.ParseFloat(args[1], 64)
+			return chaincode.validateBuyBid(stub, args[0], maxBuyBidPaymentCover)
+		},
+		"getCallerIDAndCallerMspID": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getCallerIDAndCallerMspID(stub)
+		},
+		"auction": func(stub shim.ChaincodeStubInterface, args []string) pb.Response { return chaincode.auction(stub) },
+		"transactionsEnergyQuantityFromPaymentToken": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.transactionsEnergyQuantityFromPaymentToken(stub, args[0], args[1])
+		},
+		"getEnergyTransactionsFromPaymentToken": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getEnergyTransactionsFromPaymentToken(stub, args[0], args[1])
+		},
+		"getEnergyTransactionsFromSellBidNumbers": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getEnergyTransactionsFromSellBidNumbers(stub, args)
+		},
+		"getEnergyTransactionsFromFullSellBidKey": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getEnergyTransactionsFromFullSellBidKey(stub, args[0], args[1], args[2])
+		},
+		"getEnergyTransactionsFromSellerAfterSellBidNumber": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			initialSellBidNum, _ := strconv.ParseUint(args[2], 10, 64)
+			return chaincode.getEnergyTransactionsFromSellerAfterSellBidNumber(stub, args[0], args[1], initialSellBidNum)
+		},
+
+		////////// TESTING FUNCTIONS ////////////////
+		"auctionSortedQueries": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.auctionSortedQueries(stub)
+		},
+		"registerMultipleSellBids": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			nSellBids, _ := strconv.ParseUint(args[0], 10, 64)
+			minAmountKWH, _ := strconv.ParseFloat(args[1], 64)
+			maxAmountKWH, _ := strconv.ParseFloat(args[2], 64)
+			minPricePerKWH, _ := strconv.ParseFloat(args[3], 64)
+			maxPricePerKWH, _ := strconv.ParseFloat(args[4], 64)
+			return chaincode.registerMultipleSellBids(stub, nSellBids, minAmountKWH, maxAmountKWH, minPricePerKWH, maxPricePerKWH, args[5])
+		},
+		"registerMultipleBuyBids": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			nBuyBids, _ := strconv.Atoi(args[0])
+			minAmountKWH, _ := strconv.ParseFloat(args[2], 64)
+			maxAmountKWH, _ := strconv.ParseFloat(args[3], 64)
+			minPricePerKWH, _ := strconv.ParseFloat(args[4], 64)
+			maxPricePerKWH, _ := strconv.ParseFloat(args[5], 64)
+			return chaincode.registerMultipleBuyBids(stub, nBuyBids, args[1], minAmountKWH, maxAmountKWH, minPricePerKWH, maxPricePerKWH, args[6])
+		},
+		"validateMultipleBuyBids": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			nBuyBids, _ := strconv.Atoi(args[0])
+			return chaincode.validateMultipleBuyBids(stub, nBuyBids)
+		},
+		"clearSellBids": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.clearSellBids(stub)
+		},
+		"clearBuyBids": func(stub shim.ChaincodeStubInterface, args []string) pb.Response { return chaincode.clearBuyBids(stub) },
+		"printDataQuantityByPartialCompositeKey": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			if len(args) < 2 {
+				return chaincode.printDataQuantityByPartialCompositeKey(stub, args[0], []string{})
+			}
+			return chaincode.printDataQuantityByPartialCompositeKey(stub, args[0], args[1:len(args)])
+		},
+		"deleteDataByPartialCompositeKey": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			if len(args) < 2 {
+				return chaincode.deleteDataByPartialCompositeKey(stub, args[0], []string{})
+			}
+			return chaincode.deleteDataByPartialCompositeKey(stub, args[0], args[1:len(args)])
+		},
+		"printDataQuantityByPartialSimpleKey": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.printDataQuantityByPartialSimpleKey(stub, args[0])
+		},
+		"deleteDataByPartialSimpleKey": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.deleteDataByPartialSimpleKey(stub, args[0])
+		},
+		"registerMultipleSellers": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			nSellers, _ := strconv.Atoi(args[0])
+			return chaincode.registerMultipleSellers(stub, nSellers)
+		},
+		"measureTimeDifferentAuctions": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			repeatAuction, _ := strconv.Atoi(args[0])
+			return chaincode.measureTimeDifferentAuctions(stub, repeatAuction)
+		},
+		"testWorldStateLogic": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.testWorldStateLogic(stub)
+		},
+		"sensorDeclareActiveTestContext": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.sensorDeclareActiveTestContext(stub, args[0])
+		},
+		"publishSensorDataTestContext": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			versionInt, _ := strconv.Atoi(args[1])
+			version := int8(versionInt)
+			unit64, _ := strconv.ParseUint(args[2], 10, 32)
+			unit := uint32(unit64)
+			timestamp, _ := strconv.ParseUint(args[3], 10, 64)
+			value, _ := strconv.ParseFloat(args[4], 64)
+			eUint, _ := strconv.ParseUint(args[5], 10, 8)
+			e := uint8(eUint)
+			confidenceUint, _ := strconv.ParseUint(args[6], 10, 8)
+			confidence := uint8(confidenceUint)
+			dev, _ := strconv.ParseUint(args[7], 10, 32)
+			return chaincode.publishSensorDataTestContext(stub, args[0], version, unit, timestamp, value, e, confidence, uint32(dev))
+		},
+		"registerSellerTestContext": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			windTurbinesNumber, _ := strconv.ParseUint(args[1], 10, 64)
+			solarPanelsNumber, _ := strconv.ParseUint(args[2], 10, 64)
+			return chaincode.registerSellerTestContext(stub, args[0], windTurbinesNumber, solarPanelsNumber)
+		},
+		"publishEnergyGenerationTestContext": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			t0, _ := strconv.ParseUint(args[1], 10, 64)
+			t1, _ := strconv.ParseUint(args[2], 10, 64)
+			if len(args)%2 == 0 || len(args) > 3+len(EnergyTypes) {
+				return shim.Error("Wrong number of arguments for function publishEnergyGenerationTestContext")
+			}
+			energyByTypeGeneratedKWH := make(map[string]float64)
+			for i := 3; i < len(args); i += 2 {
+				energyByTypeGeneratedKWH[args[i]], _ = strconv.ParseFloat(args[i+1], 64)
+			}
+			return chaincode.publishEnergyGenerationTestContext(stub, args[0], t0, t1, energyByTypeGeneratedKWH)
+		},
+		"registerSellBidTestContext": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			amountKWH, _ := strconv.ParseFloat(args[1], 64)
+			pricePerKWH, _ := strconv.ParseFloat(args[2], 64)
+			return chaincode.registerSellBidTestContext(stub, args[0], amountKWH, pricePerKWH, args[3])
+		},
+		"getEnergyTransactionsFromSellBidNumbersTestContext": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getEnergyTransactionsFromSellBidNumbersTestContext(stub, args[0], args[1:len(args)])
+		},
+		"validateBuyBidTestContext": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.validateBuyBidTestContext(stub, args[0], args[1])
+		},
+	}
+
+	err := shim.Start(chaincode)
 	if err != nil {
 		fmt.Printf("Error starting Simple chaincode: %s", err)
 	}

@@ -155,12 +155,13 @@ public class AppBuyerForTest {
 
                             double energyQuantitySettledByTransactions = Double.parseDouble(new String(response));
                             if (energyQuantitySettledByTransactions > publishedBid.energyQuantitySettled) {
-                                //int utilityNonce = getUtilityCompanyNonce();
+                                // int utilityNonce = getUtilityCompanyNonce();
                                 int utilityNonce = 12341323;
                                 byte[] ipkOwnershipSignatureProof = publishedBid.signingId
                                         .sign((publishedBid.transactionID + Integer.toString(utilityNonce)).getBytes());
-                                //requestEnergyDiscount(buyerFullName, publishedBid.transactionID, publishedBid.ipk,
-                                        //ipkOwnershipSignatureProof);
+                                // requestEnergyDiscount(buyerFullName, publishedBid.transactionID,
+                                // publishedBid.ipk,
+                                // ipkOwnershipSignatureProof);
                                 publishedBid.energyQuantitySettled += energyQuantitySettledByTransactions;
                                 if (publishedBid.isFullySatisfied())
                                     publishedBids.remove(publishedBid);
@@ -207,11 +208,12 @@ public class AppBuyerForTest {
          * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork\\hyperledger\\idemixorg\\buyer1\\msp",
          * "-pci", "UFSC", "-token", "tokentest1", "-kwh", "10", "-price", "50",
          * "-type", "solar" };
-         
-        args = new String[] { "-msp", "IDEMIXORG", "--basedir",
-                "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--buyers", "3", "--publishinterval",
-                "2000", "--publishquantity", "1", "--utilityurl", "http://localhost", "--paymentcompanyurl",
-                "http://localhost:81" };*/
+         * 
+         * args = new String[] { "-msp", "IDEMIXORG", "--basedir",
+         * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--buyers", "1",
+         * "--publishinterval", "2000", "--publishquantity", "10", "--utilityurl",
+         * "http://localhost", "--paymentcompanyurl", "http://localhost:81" };
+         */
 
         ArgParserBuyerTest testParser = new ArgParserBuyerTest();
 
@@ -252,8 +254,8 @@ public class AppBuyerForTest {
             String buyerNameIdentity = "buyer1";
             Path idemixCredsPath = Paths.get(baseDir, "hyperledger", msp.toLowerCase(), "buyer1", "msp");
             args = new String[] { "-cp", idemixCredsPath.toString(), "-msp", msp, "-u",
-                    String.format("%s-%s", buyerNameIdentity, msp.toLowerCase()), "-pci", "UFSC", "-kwh", "10", "-price", "50",
-                    "-type", "solar", "-token", "tokentest1" };
+                    String.format("%s-%s", buyerNameIdentity, msp.toLowerCase()), "-pci", "UFSC", "-kwh", "10",
+                    "-price", "50", "-type", "solar", "-token", "tokentest1" };
             cmd = buyerParser.parseArgs(args);
 
             // get buyer's idemix identity
@@ -261,7 +263,8 @@ public class AppBuyerForTest {
 
             // Path to a common connection profile describing the network.
             String mspLower = cmd.getOptionValue("msp").toLowerCase();
-            Path networkConfigFile = Paths.get("cfgs", String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
+            Path networkConfigFile = Paths.get("cfgs",
+                    String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
 
             // Configure the gateway connection used to access the network.
             builder = Gateway.createBuilder().identity(idemixId).networkConfig(networkConfigFile)
@@ -286,21 +289,22 @@ public class AppBuyerForTest {
                 threads[i] = new Thread() {
 
                     int threadNum = finalI;
-                    //CommandLine cmd;
+                    // CommandLine cmd;
 
                     public void run() {
                         try {
                             // Obtain a smart contract deployed on the network.
 
                             List<PublishedBuyBid> publishedBids = new LinkedList<PublishedBuyBid>();
-                            String buyerFullName = String.format("buyer%d-%s", threadNum, cmd.getOptionValue("msp").toLowerCase());
+                            String buyerFullName = String.format("buyer%d-%s", threadNum,
+                                    cmd.getOptionValue("msp").toLowerCase());
                             registerAuctionEventListener(contract, publishedBids, buyerFullName);
 
                             long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0,
                                     startTransaction = 0, singleSignatureTime = 0, startSignature;
 
                             // Putting funds on buyer accounts to request token
-                            //putFundsOnPaymentAccount(1000000, buyerFullName);
+                            // putFundsOnPaymentAccount(1000000, buyerFullName);
 
                             threadsBarrier.await();
                             startExecution = System.currentTimeMillis();
@@ -310,7 +314,7 @@ public class AppBuyerForTest {
                             Thread.sleep(new Random().nextInt(500) + 2000);
                             while (publish < maxPublish) {
                                 // Request token to Payment Company
-                                //String token = requestPaymentToken(buyerFullName);
+                                // String token = requestPaymentToken(buyerFullName);
                                 String token = simluateGetToken();
 
                                 // Submit BuyBid
@@ -321,12 +325,11 @@ public class AppBuyerForTest {
                                 String pricePerKwh = cmd.getOptionValue("priceperkwh");
                                 String energyType = cmd.getOptionValue("energytype");
                                 Transaction transaction = contract.createTransaction("registerBuyBid");
-                                transaction.submit(paymentCompanyId, token, utilityCompanyId,
-                                        energyQuantity, pricePerKwh, energyType);
+                                transaction.submit(paymentCompanyId, token, utilityCompanyId, energyQuantity,
+                                        pricePerKwh, energyType);
                                 transactionTimeWait += System.currentTimeMillis() - startTransaction;
                                 // Request BuyBid validation to the Payment Company
-                                //requestBuyBidValidation(token, buyerFullName);
-
+                                // requestBuyBidValidation(token, buyerFullName);
 
                                 TransactionContext transactionContext = transaction.getTransactionContext();
 

@@ -362,7 +362,7 @@ echo -e $blueback \# Gerando bloco genesis para syschannel -- NAO PRECISA NA VER
 configtxgen -configPath $BASE_DIR/generated-config -profile $sysChannelProfile -outputBlock ${BASE_DIR}/hyperledger/tempgenesis.block -channelID syschannel
 find hyperledger/ -type d -regex ".*/orderer[0-9]+" | while read path; do cp ${BASE_DIR}/hyperledger/tempgenesis.block ${BASE_DIR}/$path/genesis.block; done  
 rm ${BASE_DIR}/hyperledger/tempgenesis.block
-defaultOrderer=$(python $BASE_DIR/scripts/getDefaultOrderer.py $sysChannelProfile)
+defaultOrderer=$(python $BASE_DIR/scripts/getDefaultOrderer.py $BASE_DIR/generated-config/configtx.yaml $sysChannelProfile)
 
 #
 # CREATING ORDERERES AND TURNING THEM ON IN DOCKER

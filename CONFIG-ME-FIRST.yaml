@@ -10,22 +10,22 @@ organizations:
       sensor-quantity: 1 #200
       msptype: x509
 
-    - name: parma
-      admin-quantity: 1
-      client-quantity: 0
-      peer-quantity: 1 
-      orderer-quantity: 1
-      buyer-quantity: 0 
-      seller-quantity: 2
-      sensor-quantity: 2
-      msptype: x509
+    # - name: parma
+      # admin-quantity: 1
+      # client-quantity: 0
+      # peer-quantity: 1 
+      # orderer-quantity: 1
+      # buyer-quantity: 0 
+      # seller-quantity: 2
+      # sensor-quantity: 2
+      # msptype: x509
     
-    - name: idemixorg
-      admin-quantity: 1
-      client-quantity: 0
-      peer-quantity: 0
-      orderer-quantity: 0
-      buyer-quantity: 1 #200
-      seller-quantity: 0
-      sensor-quantity: 0
-      msptype: idemix
+    # - name: idemixorg
+      # admin-quantity: 1
+      # client-quantity: 0
+      # peer-quantity: 0
+      # orderer-quantity: 0
+      # buyer-quantity: 1 #200
+      # seller-quantity: 0
+      # sensor-quantity: 0
+      # msptype: idemix
