@@ -231,7 +231,7 @@ enrollByRole () {
     roleAndNumber=$4
     enrollType=$5
     if [ "$6" != "" ]; then
-        csrHosts="--csr.hosts $6"
+        csrHosts="--csr.hosts $6,$roleAndNumber-$orgName"
     fi
 
     export FABRIC_CA_CLIENT_HOME=${BASE_DIR}/hyperledger/$orgName/$roleAndNumber/tls-msp
@@ -403,9 +403,9 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     #export ORG_NAME_UPPER=${ORG_NAME^^}
     nOrds=${matrix[$l,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
-        scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
+        scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
 
-        ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]} << EOF
+        ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]} << EOF
             export ORG_NAME=${matrix[$l,name]}
             export ORG_NAME_UPPER=\${ORG_NAME^^}
             export ORDERER_NUMBER=$i
@@ -433,8 +433,9 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     export ORG_NAME=${matrix[$l,name]}
     nPeers=${matrix[$l,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
-        scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
-        ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]} << EOF
+        scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
+        ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]} << EOF
+            export COMPOSE_PROJECT_NAME="fabric"
             export ORG_NAME=${matrix[$l,name]}
             export ORG_NAME_UPPER=\${ORG_NAME^^}
             export PEER_NUMBER=$i
@@ -513,12 +514,12 @@ while true; do
     channelID="canal"
     channelID=${channelID,,}
     #Python script reads the $profile variable and prints the orgs in the channel
-    ORGS_IN_CHANNEL=( $(python $BASE_DIR/scripts/getOrganizationsInChannel.py $profile) )
+    ORGS_IN_CHANNEL=( $(python $BASE_DIR/scripts/getOrganizationsInChannel.py $BASE_DIR/generated-config-aws/configtx.yaml $profile) )
     #Generate channel CreateChannelTx
 
     firstOrgInChannelUpper=${ORGS_IN_CHANNEL[0]}
     firstOrgInChannelLower=${firstOrgInChannelUpper,,}
-    configtxgen -configPath $BASE_DIR/generated-config-aws -profile $profile -outputCreateChannelTx ${BASE_DIR}/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -channelID $channelID --asOrg $orgName
+    configtxgen -configPath $BASE_DIR/generated-config-aws -profile $profile -outputCreateChannelTx ${BASE_DIR}/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -channelID $channelID --asOrg $firstOrgInChannelUpper
     export MSYS_NO_PATHCONV=1
 
     #
@@ -526,7 +527,7 @@ while true; do
     # MESSAGE SENT TO A ORDERER
     #
     echo -e $blueback \# Creating channel$resetvid
-    docker exec -e CORE_PEER_LOCALMSPID=$firstOrgInChannelUpper -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$firstOrgInChannelLower/admin1/msp cli-$firstOrgInChannelLower peer channel create -c $channelID -f /tmp/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -o $defaultOrderer:7050 --outputBlock /tmp/hyperledger/$firstOrgInChannelLower/admin1/$channelID.block --tls --cafile /tmp/hyperledger/$firstOrgInChannelLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
+    docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$firstOrgInChannelUpper -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$firstOrgInChannelLower/admin1/msp cli-$firstOrgInChannelLower peer channel create -c $channelID -f /tmp/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -o $defaultOrderer:7050 --outputBlock /tmp/hyperledger/$firstOrgInChannelLower/admin1/$channelID.block --tls --cafile /tmp/hyperledger/$firstOrgInChannelLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --connTimeout 100s 
 
     unset MSYS_NO_PATHCONV
     rm ${BASE_DIR}/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx
@@ -558,7 +559,7 @@ while true; do
 
         nPeers=${matrix[$orgIndex,peer-quantity]}
         for ((i=1; i<=nPeers; i+=1)); do
-            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer$i-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower peer channel join -b /tmp/hyperledger/$orgNameLower/admin1/$channelID.block   
+            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer$i-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower peer channel join -b /tmp/hyperledger/$orgNameLower/admin1/$channelID.block    
         done
 
         #
@@ -566,7 +567,7 @@ while true; do
         #
         if (( nPeers > 0 )); then
             echo -e $blueback \# "Setting peer1-$orgNameLower as ANCHOR PEER in org $orgNameLower for channel $channelID" $resetvid
-            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower bash -c "mkdir -p art && peer channel fetch config art/config_block.pb -o $defaultOrderer:7050 -c $channelID --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem"
+            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower bash -c "mkdir -p art && peer channel fetch config art/config_block.pb -o $defaultOrderer:7050 -c $channelID --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --connTimeout 100s" 
 
             docker exec cli-$orgNameLower configtxlator proto_decode --input art/config_block.pb --type common.Block --output art/config_block.json 
             docker exec cli-$orgNameLower bash -c "jq .data.data[0].payload.data.config art/config_block.json > art/config.json"
@@ -580,7 +581,7 @@ while true; do
             docker exec cli-$orgNameLower bash -c "echo '{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"'$channelID'\",\"type\":2}},\"data\":{\"config_update\":'\$(cat art/config_update.json)'}}}' | jq . > art/config_update_in_envelope.json"
             docker exec cli-$orgNameLower configtxlator proto_encode --input art/config_update_in_envelope.json --type common.Envelope --output art/config_update_in_envelope.pb
 
-            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower peer channel update -f art/config_update_in_envelope.pb -c canal -o $defaultOrderer:7050 --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
+            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$orgNameLower peer channel update -f art/config_update_in_envelope.pb -c canal -o $defaultOrderer:7050 --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --connTimeout 100s 
         fi 
     done 
 
@@ -625,7 +626,7 @@ while true; do
         for ((i=1; i<=nPeers; i+=1)); do
             for chaincodeName in ${chaincodeNames[@]}; do
                 echo -e $blueback "Installing chaincode '$chaincodeName' in peer$i-$orgNameLower" $resetvid
-                docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer$i-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=$adminMSP -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=$adminCaTLSCert cli-$orgNameLower peer lifecycle chaincode install $chaincodeName.tar.gz
+                docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer$i-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=$adminMSP -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=$adminCaTLSCert cli-$orgNameLower peer lifecycle chaincode install $chaincodeName.tar.gz 
 
             done
         done
@@ -636,8 +637,8 @@ while true; do
         #
         if [ $enrollType != "idemix" ]; then
             echo -e $blueback "Storing chaincode '$chaincodeName' identifier for later ORG approval" $resetvid
-            jsonString=$(docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=$adminMSP -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=$adminCaTLSCert cli-$orgNameLower peer lifecycle chaincode queryinstalled --output json)
-            
+            jsonString=$(docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=$adminMSP -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=$adminCaTLSCert cli-$orgNameLower peer lifecycle chaincode queryinstalled --output json )
+      
             #get installed chaincodes IDs
             unset MSYS_NO_PATHCONV
             chaincodeIDs=( $(python $BASE_DIR/scripts/getChaincodesIDs.py "$jsonString") )
@@ -649,7 +650,7 @@ while true; do
             chaincodeIndex=0
             for chaincodeName in ${chaincodeNames[@]}; do
                 echo -e $blueback "Approving chaincode '$chaincodeName' for org $orgNameUpper" $resetvid
-                docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=$adminMSP -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=$adminCaTLSCert cli-$orgNameLower peer lifecycle chaincode approveformyorg -o $defaultOrderer:7050 --tls --cafile $adminCaTLSCert --channelID $channelID --name $chaincodeName --version 1 --init-required --package-id ${chaincodeIDs[$chaincodeIndex]} --sequence 1
+                docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=$adminMSP -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=$adminCaTLSCert cli-$orgNameLower peer lifecycle chaincode approveformyorg -o $defaultOrderer:7050 --tls --cafile $adminCaTLSCert --channelID $channelID --name $chaincodeName --version 1 --init-required --package-id ${chaincodeIDs[$chaincodeIndex]} --sequence 1 --connTimeout 100s 
                 
                 chaincodeIndex=$((chaincodeIndex+1))  
             done
@@ -677,11 +678,11 @@ while true; do
             nPeers=${matrix[$orgIndex,peer-quantity]}
             if (( $nPeers > 0 )); then 
                 tlsRootFlags+="--tlsRootCertFiles $adminCaTLSCert " 
-                peerAddressesFlags+="--peerAddresses CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051"
+                peerAddressesFlags+="--peerAddresses ${orgsPeerHosts[peer1-$orgNameLower]}:7051"
             fi
         done
 
-        docker exec -e CORE_PEER_LOCALMSPID=$committerOrgUpper -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$committerOrgLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$committerOrgLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$committerOrgLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$committerOrgLower peer lifecycle chaincode commit -o $defaultOrderer:7050 --channelID $channelID --name $chaincodeName --version 1 --sequence 1 --init-required --tls --cafile $adminCaTLSCert $tlsRootFlags $peerAddressesFlags
+        docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$committerOrgUpper -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$committerOrgLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$committerOrgLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$committerOrgLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-$committerOrgLower peer lifecycle chaincode commit -o $defaultOrderer:7050 --channelID $channelID --name $chaincodeName --version 1 --sequence 1 --init-required --tls --cafile $adminCaTLSCert $tlsRootFlags $peerAddressesFlags --connTimeout 100s 
     done
     
     #
@@ -749,6 +750,9 @@ export MSYS_NO_PATHCONV=1
 docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"Init","Args":[]}' --isInit
 
 exit 1
+
+
+docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=	ec2-18-230-151-138.sa-east-1.compute.amazonaws.com:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-ufsc peer chaincode invoke -o 	ec2-177-71-141-79.sa-east-1.compute.amazonaws.com:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses 		ec2-18-230-151-138.sa-east-1.compute.amazonaws.com:7051 -c '{"function":"Init","Args":[]}' --isInit --connTimeout 100s
 
 #read -p "PRESS ENTER TO CONTINUE"
 

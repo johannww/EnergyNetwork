@@ -484,12 +484,12 @@ while true; do
     channelID="canal"
     channelID=${channelID,,}
     #Python script reads the $profile variable and prints the orgs in the channel
-    ORGS_IN_CHANNEL=( $(python $BASE_DIR/scripts/getOrganizationsInChannel.py $profile) )
+    ORGS_IN_CHANNEL=( $(python $BASE_DIR/scripts/getOrganizationsInChannel.py $BASE_DIR/generated-config/configtx.yaml $profile) )
     #Generate channel CreateChannelTx
 
     firstOrgInChannelUpper=${ORGS_IN_CHANNEL[0]}
     firstOrgInChannelLower=${firstOrgInChannelUpper,,}
-    configtxgen -configPath $BASE_DIR/generated-config -profile $profile -outputCreateChannelTx ${BASE_DIR}/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -channelID $channelID --asOrg $orgName
+    configtxgen -configPath $BASE_DIR/generated-config -profile $profile -outputCreateChannelTx ${BASE_DIR}/hyperledger/$firstOrgInChannelLower/admin1/$channelID.tx -channelID $channelID --asOrg $firstOrgInChannelUpper
     export MSYS_NO_PATHCONV=1
 
     #
