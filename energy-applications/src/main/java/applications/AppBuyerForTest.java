@@ -168,7 +168,7 @@ public class AppBuyerForTest {
                             }
                         }
                     } catch (Exception e) {
-                        System.out.println("HTTP FAILURE");
+                        System.out.println(e.getMessage());
                     }
                 }
             }

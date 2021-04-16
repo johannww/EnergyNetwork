@@ -1,24 +1,24 @@
 sensors:
-  quantity: 1
+  quantity: 10
   unit: 3834792229
   #Interval in ms
   publishinterval: 5000
-  publishquantity: 1
+  publishquantity: 20
   msp: UFSC
 
 sellers:
-  quantity: 1
+  quantity: 10
   #Interval in ms
   publishinterval: 5000
-  publishquantity: 1
+  publishquantity: 20
   msp: UFSC
 
 
 buyers:
-  quantity: 1
+  quantity: 10
   #Interval in ms
   publishinterval: 5000
-  publishquantity: 1
+  publishquantity: 20
   msp: IDEMIXORG
 
 utilityurl: http://localhost

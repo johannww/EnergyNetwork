@@ -185,7 +185,7 @@ public class AppSellerForTest {
          * args = new String[] { "-msp", "UFSC", "--basedir",
          * "D:\\UFSC\\Mestrado\\Hyperledger\\Fabric\\EnergyNetwork", "--sellers", "2",
          * "--publishinterval", "2000", "--publishquantity", "1", "--paymentcompanyurl",
-         * "http://slocalhost:81" };
+         * "http://localhost:81" };
          */
 
         ArgParserSellerTest testParser = new ArgParserSellerTest();

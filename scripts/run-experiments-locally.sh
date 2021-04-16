@@ -91,6 +91,8 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     for ((i=1; i<=$nPeers; i+=1)); do
         docker restart peer$i-$orgName
         docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" peer$i-$orgName > $testFolder/stats-peer$i-$orgName.txt &
+        chaincodeContainerName=$(docker container ls --format "{{.Names}}" | grep "dev-peer$i-$orgName")
+        docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" $chaincodeContainerName > $testFolder/stats-chaincode-peer$i-$orgName.txt &
         echo -n "peer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
         docker exec peer$i-$orgName du -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
@@ -102,6 +104,7 @@ docker restart cli-applications
 echo -e $blueback \## "measuring ecdsap256 speed - ONLY POSSIBLE IN cli-applications "   $resetvid
 docker exec cli-applications openssl speed ecdsap256 > $testFolder/ecdsap256-speed-cli-applications.txt
 
+docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" cli-applications > $testFolder/stats-cli-applications.txt &
 
 #loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
 #loggingFlag2="-Dlog4j.configuration=log4j.properties"
