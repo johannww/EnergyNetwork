@@ -149,7 +149,8 @@ public class AppBuyerForTest {
                 if (t.getName().equals("auctionPerformed")) {
                     try {
                         // prove to utility company
-                        for (PublishedBuyBid publishedBid : publishedBids) {
+                        for (int i = 0; i < publishedBids.size(); i++) {
+                            PublishedBuyBid publishedBid = publishedBids.get(i);
                             byte[] response = contract.createTransaction("transactionsEnergyQuantityFromPaymentToken")
                                     .evaluate(publishedBid.paymentCompanyId, publishedBid.paymentToken);
 
@@ -169,6 +170,7 @@ public class AppBuyerForTest {
                         }
                     } catch (Exception e) {
                         System.out.println(e.getMessage());
+                        e.printStackTrace();
                     }
                 }
             }

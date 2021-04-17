@@ -1,5 +1,5 @@
 sensors:
-  quantity: 10
+  quantity: 1
   unit: 3834792229
   #Interval in ms
   publishinterval: 5000
@@ -7,7 +7,7 @@ sensors:
   msp: UFSC
 
 sellers:
-  quantity: 10
+  quantity: 1
   #Interval in ms
   publishinterval: 5000
   publishquantity: 20
@@ -15,7 +15,7 @@ sellers:
 
 
 buyers:
-  quantity: 10
+  quantity: 1
   #Interval in ms
   publishinterval: 5000
   publishquantity: 20

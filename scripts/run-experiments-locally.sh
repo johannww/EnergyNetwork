@@ -82,7 +82,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     nOrds=${parsedConfigMeFirst[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
         docker restart orderer$i-$orgName 
-        docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" orderer$i-$orgName > $testFolder/stats-orderer$i-$orgName.txt &
+        docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" orderer$i-$orgName > $testFolder/stats-orderer$i-$orgName.txt &
         echo -n "orderer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
         docker exec orderer$i-$orgName du -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
@@ -90,9 +90,9 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
         docker restart peer$i-$orgName
-        docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" peer$i-$orgName > $testFolder/stats-peer$i-$orgName.txt &
+        docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" peer$i-$orgName > $testFolder/stats-peer$i-$orgName.txt &
         chaincodeContainerName=$(docker container ls --format "{{.Names}}" | grep "dev-peer$i-$orgName")
-        docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" $chaincodeContainerName > $testFolder/stats-chaincode-peer$i-$orgName.txt &
+        docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" $chaincodeContainerName > $testFolder/stats-chaincode-peer$i-$orgName.txt &
         echo -n "peer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
         docker exec peer$i-$orgName du -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
@@ -104,7 +104,7 @@ docker restart cli-applications
 echo -e $blueback \## "measuring ecdsap256 speed - ONLY POSSIBLE IN cli-applications "   $resetvid
 docker exec cli-applications openssl speed ecdsap256 > $testFolder/ecdsap256-speed-cli-applications.txt
 
-docker stats --format "{{.Container}}:{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" cli-applications > $testFolder/stats-cli-applications.txt &
+docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" cli-applications > $testFolder/stats-cli-applications.txt &
 
 #loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
 #loggingFlag2="-Dlog4j.configuration=log4j.properties"
@@ -114,8 +114,8 @@ echo -e $blueback \## "Starting Utility and PaymentCompany applications "   $res
 #nohup mvn exec:java@utility -Dexec.mainClass="applications.AppUtility" -Dexec.args="-msp UFSC -port 80 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem"  > $BASE_DIR/test-reports/AppUtility.out 2>&1 &
 #nohup mvn exec:java@payment -Dexec.mainClass="applications.AppPaymentCompany" -Dexec.args="-msp UFSC -port 81 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" > $BASE_DIR/test-reports/AppPaymentCompany.out 2>&1 &
 export MSYS_NO_PATHCONV=1
-docker exec cli-applications bash -c 'nohup mvn exec:java@utility -Dexec.mainClass="applications.AppUtility" -Dexec.args="-msp UFSC -port 80 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppUtility.out 2>&1 &'
-docker exec cli-applications bash -c 'nohup mvn exec:java@payment -Dexec.mainClass="applications.AppPaymentCompany" -Dexec.args="-msp UFSC -port 81 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPaymentCompany.out 2>&1 &'
+#docker exec cli-applications bash -c 'nohup mvn exec:java@utility -Dexec.mainClass="applications.AppUtility" -Dexec.args="-msp UFSC -port 80 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppUtility.out 2>&1 &'
+#docker exec cli-applications bash -c 'nohup mvn exec:java@payment -Dexec.mainClass="applications.AppPaymentCompany" -Dexec.args="-msp UFSC -port 81 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPaymentCompany.out 2>&1 &'
 unset MSYS_NO_PATHCONV
 
 echo -e $blueback \## "Starting sensors, sellers and buyers applications"   $resetvid 
@@ -140,7 +140,7 @@ echo -e $blueback \## "Starting PeriodicAuction application"  $resetvid
 #nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval 50000 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" &
 
 export MSYS_NO_PATHCONV=1
-docker exec cli-applications bash -c 'nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1 &'
+(docker exec cli-applications bash -c 'mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1') &
 unset MSYS_NO_PATHCONV
 #cd ..
 
@@ -160,6 +160,9 @@ wait $pidSensor
 wait $pidSeller 
 wait $pidBuyer
 echo -e $blueback \## "Applications ended "   $resetvid 
+
+echo -e $blueback \## "Killing containers logging jobs"   $resetvid 
+jobs -p | xargs kill
 
 echo -e $blueback \## "TIRAR DAQUI final containers sizes "   $resetvid 
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
