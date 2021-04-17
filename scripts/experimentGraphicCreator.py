@@ -50,14 +50,14 @@ def netUsageToMbFloat(netStrDockerStats):
   if numPosition >= 0:
     return float(netStrDockerStats[:numPosition]) / (1024 * 1024)
 
-def saveEntityGraphs(entityName):
+def mountEntityStats(entityName):
   with(open(testReportDir+"/stats-"+entityName+".txt", "r")) as stat:
     statTxt = stat.read()
     statTxt = statTxt.replace("[2J[H", "").replace("\n", ":")
     dataCells = statTxt.split(":")[:-1]
     stats[entityName] = {CPU: [], MEM: [], NET_IN: [], NET_OUT: [], DISK_READ: [], DISK_WRITE: []}
     for metricsSetNumber in range(0, len(dataCells), CONTAINER_METRICS_QUANTITY):
-      stats[entityName][CPU].append(float(dataCells[metricsSetNumber].replace("%","")) * 100)
+      stats[entityName][CPU].append(float(dataCells[metricsSetNumber].replace("%","")))
       mem = memToGibFloat(dataCells[metricsSetNumber+1])
       stats[entityName][MEM].append(mem)
       netIn = netUsageToMbFloat(dataCells[metricsSetNumber+2].split(" / ")[0])
@@ -68,19 +68,36 @@ def saveEntityGraphs(entityName):
       stats[entityName][DISK_READ].append(diskRead)
       diskWrite = netUsageToMbFloat(dataCells[metricsSetNumber+3].split(" / ")[1])
       stats[entityName][DISK_WRITE].append(diskWrite)
-    
+
+def getBiggestStatLen():
+  biggestLen = 0
+  for entity in stats:
+    statLen = len(stats[entity][CPU])
+    if statLen > biggestLen:
+      biggestLen = statLen
+  return biggestLen
+
+def syncStats():
+  biggestLen = getBiggestStatLen()
+  for entity in stats:
+    for metric in stats[entity]:
+      stats[entity][metric] = [0 for i in range(0, biggestLen-len(stats[entity][metric]))] + stats[entity][metric]
+
+def saveEntitiesGraphs():
+  for entityName in stats:
     for metric in stats[entityName]:
       plt.plot(stats[entityName][metric])
+      plt.xlabel("Time (s)")
       plt.ylabel("{} ({})".format(metric, units[metric]))
       plt.grid(True)
       #plt.ylim(bottom=-0.001)
       plt.savefig("{}/stats-{}-{}.jpg".format(plotsDir, entityName, metric.replace(" ","-")))
       plt.close()
 
-#testReportDir = sys.argv[1]
-testReportDir = "D:/UFSC/Mestrado/Hyperledger/Fabric/EnergyNetwork/test-reports/1"
+testReportDir = sys.argv[1]
+#testReportDir = "D:/UFSC/Mestrado/Hyperledger/Fabric/EnergyNetwork/test-reports/5"
 plotsDir = testReportDir+"/plots"
-if not os.path.isdir:
+if not os.path.isdir(plotsDir):
   os.mkdir(plotsDir, 1)
 
 '''Parsing "CONFIG-ME-FIRST.yaml" file'''
@@ -93,12 +110,19 @@ for org in parsedPreConfig["organizations"]:
   orgName = org["name"]
   for ordererNumber in reversed(range(1, org["orderer-quantity"]+1)):
     ordererName = "orderer{}-{}".format(str(ordererNumber), orgName)
-    saveEntityGraphs(ordererName)
+    mountEntityStats(ordererName)
       
   for peerNumber in reversed(range(1, org["peer-quantity"]+1)):
     peerName = "peer{}-{}".format(str(peerNumber), orgName)
-    saveEntityGraphs(peerName)
-    saveEntityGraphs("chaincode-{}".format(peerName))
+    mountEntityStats(peerName)
+    mountEntityStats("chaincode-{}".format(peerName))
 
-saveEntityGraphs("cli-applications")
+mountEntityStats("cli-applications")
+
+# sync the stats time by adding '0' to the beggining of them
+# until all stats are same length
+syncStats()
+
+# save plotted graphs to 'test-reports/NUMBER/plots'
+saveEntitiesGraphs()
 

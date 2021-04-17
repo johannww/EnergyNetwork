@@ -164,7 +164,7 @@ echo -e $blueback \## "Applications ended "   $resetvid
 echo -e $blueback \## "Killing containers logging jobs"   $resetvid 
 jobs -p | xargs kill
 
-echo -e $blueback \## "TIRAR DAQUI final containers sizes "   $resetvid 
+echo -e $blueback \## "final containers sizes "   $resetvid 
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
     orgName=${parsedConfigMeFirst[$org,name]}
 
@@ -180,3 +180,6 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         docker exec peer$i-$orgName du -hs >> $testFolder/final-containers-filesystem-sizes.txt
     done
 done
+
+echo -e $blueback \## "Plotting graphs to folder test-reports/$testNumber/plots"   $resetvid 
+python $SCRIPT_DIR/experimentGraphicCreator.py $BASE_DIR/test-reports/$testNumber
