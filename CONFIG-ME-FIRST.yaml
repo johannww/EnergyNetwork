@@ -29,3 +29,5 @@ organizations:
       seller-quantity: 0
       sensor-quantity: 0
       msptype: idemix
+
+applications-quantity: 1

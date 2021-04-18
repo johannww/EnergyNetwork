@@ -152,8 +152,10 @@ services:
         working_dir: /EnergyNetwork/energy-applications
         command: sh
         stdin_open: true
+        environment:
+            - APPLICATION_INSTANCE_ID=${APPLICATION_INSTANCE_ID}
         volumes:
-            - ${BASE_DIR}:/EnergyNetwork
+            - /home/ubuntu/EnergyNetwork:/EnergyNetwork
         networks:
             - fabric-network
 

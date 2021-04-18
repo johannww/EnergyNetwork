@@ -363,7 +363,8 @@ public class AppUtility {
             server.createContext("/noncerequest", new NonceRequestHandler());
             server.createContext("/discountrequest", new DiscountRequestHandler());
             int numberOfProcessors = Runtime.getRuntime().availableProcessors();
-            ExecutorService executor = Executors.newFixedThreadPool(numberOfProcessors);
+            //ExecutorService executor = Executors.newFixedThreadPool(numberOfProcessors);
+            ExecutorService executor = Executors.newCachedThreadPool();
             server.setExecutor(executor);
             server.start();
 

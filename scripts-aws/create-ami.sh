@@ -33,9 +33,11 @@ aws ec2 wait instance-running --instance-ids $instanceId
 echo -e $blueback \# getting instance hostname $resetvid
 publicDnsName=$(aws ec2 describe-instances --instance-ids $instanceId --output text --query 'Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicDnsName') && echo $publicDnsName
 
-echo -e $blueback \# remote copying 'scripts' and 'patches' folder $resetvid
+echo -e $blueback \# remote copying 'scripts' and 'patches' folders and the cli-applications Dockerfile $resetvid
 until scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem -r -p $SCRIPT_DIR/../scripts ubuntu@$publicDnsName:/home/ubuntu/scripts; do sleep 5; done
 scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem -r -p $SCRIPT_DIR/../patches ubuntu@$publicDnsName:/home/ubuntu/patches
+ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$publicDnsName mkdir -p '/home/ubuntu/energy-applications/Dockerfile'
+scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem -r -p $SCRIPT_DIR/../energy-applications/Dockerfile/Dockerfile ubuntu@$publicDnsName:/home/ubuntu/energy-applications/Dockerfile/Dockerfile
 
 echo -e $blueback \# increasing the EBS volume size to 15G to support the installations $resetvid
 ebsVolumeId=$(aws ec2 describe-volumes --output text --filters Name=attachment.instance-id,Values=$instanceId --query 'Volumes[0].VolumeId')
@@ -44,6 +46,13 @@ aws ec2 wait volume-in-use --volume-id $ebsVolumeId
 
 echo -e $blueback \# expanding the ebs /dev/ to the new size $resetvid
 ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$publicDnsName 'until sudo growpart "/dev/$(lsblk | grep 15G | awk '"'"{ print \$1 }"'"')" 1; do sleep 5; done'
+
+    #sudo apt install openjdk-13-jre -y
+    #sudo apt install openjdk-13-jdk -y
+    #echo 'export JAVA_HOME=/usr/lib/jvm/java-13-openjdk-amd64' | sudo tee /etc/profile.d/javapaths.sh
+    #echo 'export PATH=\$PATH:\$JAVA_HOME/bin' | sudo tee -a /etc/profile.d/javapaths.sh
+    #source /etc/profile
+    #sudo apt install maven -y
 
 echo -e $blueback \# installing software requirements $resetvid
 ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$publicDnsName << EOF
@@ -57,12 +66,7 @@ ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$publicDnsName << EOF
     sudo apt update
     sudo apt install git -y
     git config --global core.autocrlf false && git config --global core.longpaths true
-    sudo apt install openjdk-13-jre -y
-    sudo apt install openjdk-13-jdk -y
-    echo 'export JAVA_HOME=/usr/lib/jvm/java-13-openjdk-amd64' | sudo tee /etc/profile.d/javapaths.sh
-    echo 'export PATH=\$PATH:\$JAVA_HOME/bin' | sudo tee -a /etc/profile.d/javapaths.sh
-    source /etc/profile
-    sudo apt install maven -y
+
     sudo apt install -y \
         apt-transport-https \
         ca-certificates \
@@ -97,8 +101,10 @@ ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$publicDnsName << EOF
     echo 'export PATH=\$PATH:/usr/local/go/bin:\$GOPATH/bin' | sudo tee -a /etc/profile.d/gopaths.sh
     source /etc/profile
     /home/ubuntu/scripts/install-dependencies.sh
+    /home/ubuntu/scripts/build-energy-network-ubuntu-image.sh
     rm -r patches
     rm -r scripts
+    rm -r energy-applications
     mkdir EnergyNetwork
 EOF
 

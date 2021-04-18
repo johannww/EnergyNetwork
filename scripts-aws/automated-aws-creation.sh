@@ -50,6 +50,7 @@ declare -A matrix
 declare -A orgsRootCAPorts
 declare -A orgsOrdHosts
 declare -A orgsPeerHosts
+declare -A applicationsHosts
 
 
 echo -e $blueback \##Parsing CONFIG-ME-FIRST.yaml with 'shyaml' $resetvid
@@ -75,6 +76,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         exit 1
     fi
 done
+applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml key-values applications-quantity) )
 
 #
 # INITATING THE AWS INSTANCES FOR EVERY PEER AND ORDERER
@@ -427,7 +429,7 @@ EOF
 done
 
 #
-# CREATING PEERS AND THEIR COUCHDBS AND TURNING THEM ON IN DOCKER
+# CREATING PEERS AND TURNING THEM ON IN DOCKER
 #
 for  ((l=0; l<$numberOfOrgs; l+=1)); do
     export ORG_NAME=${matrix[$l,name]}
@@ -473,11 +475,6 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     sleep 1s
     docker logs cli-$ORG_NAME
 done
-
-#echo -e $blueback \# "Clearing the aws s3 bucket because files were public " $resetvid
-#aws s3 rm s3://$bucketName/hyperledger.tar.gz
-rm hyperledger.tar.gz
-#aws s3 rm s3://$bucketName/docker-compose-aws.yml
 
 #
 # CREATING THE 'connection-tls.json' files for the applications SDKs
@@ -692,15 +689,26 @@ while true; do
 done
 
 mkdir -p $BASE_DIR/test-reports
-exit 1
 
 #echo -e $blueback " Starting container 'cli-application' to execute our applications inside the docker private network " $resetvid
 #docker-compose -f docker-compose-aws.yml up -d cli-applications-ubuntu
 
 tar -czf energy-applications.tar.gz -C $BASE_DIR energy-applications
-scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem energy-applications.tar.gz ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork
-
+echo -e $blueback "Creating energy-applications " $resetvid
+for  ((i=0; i<$applicationInstancesNumber; i+=1)); do
+    applicationsHosts[$i]=$($SCRIPT_DIR/create-energy-network-instance.sh application$i) 
+    scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem energy-applications.tar.gz ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork
+    scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork/
+    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${applicationsHosts[$i]} << EOF
+        export COMPOSE_PROJECT_NAME="fabric"
+        export BINDABLE_PORT=0
+        export APPLICATION_INSTANCE_ID=$i
+        cd EnergyNetwork
+        docker-compose -f docker-compose-aws.yml up -d cli-applications-ubuntu
+EOF
+done
 rm energy-applications.tar.gz
+rm hyperledger.tar.gz
 
 #-------------------------------------------- EXIT --------------------------------------
 

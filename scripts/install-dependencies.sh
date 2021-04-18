@@ -48,8 +48,8 @@ rm -r fabric
 #docker container rm fabric-protos-compilation
 #cd ..
 
-echo -e $blueback \## "Installing JAVA dependencies for this machine" $resetvid
-$SCRIPT_DIR/install-java-dependencies.sh
+#echo -e $blueback \## "Installing JAVA dependencies for this machine" $resetvid
+#$SCRIPT_DIR/install-java-dependencies.sh
 
 #echo -e $blueback \## "Building image ubuntu CLI 'energy-network-ubuntu' for applications" $resetvid
 #$SCRIPT_DIR/build-energy-network-ubuntu-image.sh
