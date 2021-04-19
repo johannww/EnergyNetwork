@@ -86,6 +86,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         exit 1
     fi
 done
+applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml get-value applications-quantity) )
 
 #
 # GENERATING THE TLS CERTIFICATE AUTHORITIY
@@ -675,9 +676,14 @@ mkdir -p $BASE_DIR/test-reports
 #    docker exec $peerName du -hs >> $BASE_DIR/test-reports/initial-containers-filesystem-sizes.txt
 #done
 
-echo -e $blueback " Starting container 'cli-application' to execute our applications inside the docker private network " $resetvid
-docker-compose -f docker-compose.yml up -d cli-applications-ubuntu
-
+echo -e $blueback "Starting containers 'cli-application' to execute our applications inside the docker private network" $resetvid
+for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
+    export APPLICATION_INSTANCE_ID=$i
+    perl -pi -e 's/cli-applications-ubuntu:/cli-applications-ubuntu-'$i':/g' docker-compose.yml
+    sleep 1s 
+    docker-compose -f docker-compose.yml up -d cli-applications-ubuntu-$i
+    perl -pi -e 's/cli-applications-ubuntu-'$i':/cli-applications-ubuntu:/g' docker-compose.yml
+done
 #-------------------------------------------- EXIT --------------------------------------
 
 #exit 1 

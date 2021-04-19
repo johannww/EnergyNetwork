@@ -220,7 +220,8 @@ public class AppBuyerForTest {
         ArgParserBuyerTest testParser = new ArgParserBuyerTest();
 
         cmd = testParser.parseArgs(args);
-
+        String cliApplicationStr = System.getenv("APPLICATION_INSTANCE_ID");
+        int cliApplicationId = cliApplicationStr.length() > 0 ? Integer.parseInt(cliApplicationStr) : 0;
         int THREAD_NUM = Integer.parseInt(cmd.getOptionValue("buyers"));
         String msp = cmd.getOptionValue("msp");
         String baseDir = cmd.getOptionValue("basedir");
@@ -298,7 +299,7 @@ public class AppBuyerForTest {
                             // Obtain a smart contract deployed on the network.
 
                             List<PublishedBuyBid> publishedBids = new LinkedList<PublishedBuyBid>();
-                            String buyerFullName = String.format("buyer%d-%s", threadNum,
+                            String buyerFullName = String.format("buyer%d-%s", threadNum + (cliApplicationId-1) * THREAD_NUM,
                                     cmd.getOptionValue("msp").toLowerCase());
                             registerAuctionEventListener(contract, publishedBids, buyerFullName);
 

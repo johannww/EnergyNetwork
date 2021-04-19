@@ -117,7 +117,8 @@ for org in parsedPreConfig["organizations"]:
     mountEntityStats(peerName)
     mountEntityStats("chaincode-{}".format(peerName))
 
-mountEntityStats("cli-applications")
+  for appNumber in reversed(range(1, parsedPreConfig["applications-quantity"]+1)):
+    mountEntityStats("cli-applications-{}".format(str(appNumber)))
 
 # sync the stats time by adding '0' to the beggining of them
 # until all stats are same length

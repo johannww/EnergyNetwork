@@ -1536,13 +1536,13 @@ func matchBuyAndSellBidsWithSameEnergyType(stub shim.ChaincodeStubInterface, sel
 	//fmt.Println("---- MATCHING " + sellBids[0].EnergyType + " ENERGY BIDS ----")
 	//fmt.Println("")
 	//sort SellBids in ASCENDING order
-	sort.Slice(sellBids[:], func(i, j int) bool {
+	sort.SliceStable(sellBids[:], func(i, j int) bool {
 		return sellBids[i].PricePerKWH < sellBids[j].PricePerKWH
 	})
 	//fmt.Printf("Sorted ASCENDING sellBids: %+v\n", sellBids)
 
 	//sort BuyBids in DESCENDING order
-	sort.Slice(buyBids[:], func(i, j int) bool {
+	sort.SliceStable(buyBids[:], func(i, j int) bool {
 		return buyBids[i].PricePerKWH > buyBids[j].PricePerKWH
 	})
 	//fmt.Printf("Sorted DESCENDING buyBids: %+v\n", buyBids)

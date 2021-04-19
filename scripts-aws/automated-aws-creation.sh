@@ -76,8 +76,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         exit 1
     fi
 done
-applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml key-values applications-quantity) )
-
+applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml get-value applications-quantity) )
 #
 # INITATING THE AWS INSTANCES FOR EVERY PEER AND ORDERER
 #
@@ -695,7 +694,7 @@ mkdir -p $BASE_DIR/test-reports
 
 tar -czf energy-applications.tar.gz -C $BASE_DIR energy-applications
 echo -e $blueback "Creating energy-applications " $resetvid
-for  ((i=0; i<$applicationInstancesNumber; i+=1)); do
+for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     applicationsHosts[$i]=$($SCRIPT_DIR/create-energy-network-instance.sh application$i) 
     scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem energy-applications.tar.gz ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork
     scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork/

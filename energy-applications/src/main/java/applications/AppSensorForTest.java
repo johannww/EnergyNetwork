@@ -125,7 +125,8 @@ public class AppSensorForTest {
         ArgParserSensorTest testParser = new ArgParserSensorTest();
 
         cmd = testParser.parseArgs(args);
-
+        String cliApplicationStr = System.getenv("APPLICATION_INSTANCE_ID");
+        int cliApplicationId = cliApplicationStr.length() > 0 ? Integer.parseInt(cliApplicationStr) : 0;
         int THREAD_NUM = Integer.parseInt(cmd.getOptionValue("sensors"));
         String msp = cmd.getOptionValue("msp");
         String baseDir = cmd.getOptionValue("basedir");
@@ -134,7 +135,7 @@ public class AppSensorForTest {
         int maxPublish = Integer.parseInt(cmd.getOptionValue("publishquantity"));
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
         String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
-
+    
         // parsing sensor params
         ArgParserSensor sensorParser = new ArgParserSensor();
         Gateway.Builder builder;
@@ -185,7 +186,7 @@ public class AppSensorForTest {
                         // Create a gateway connection
                         try {
 
-                            String sensorFullName = String.format("sensor%d-%s", threadNum,
+                            String sensorFullName = String.format("sensor%d-%s", threadNum + (cliApplicationId-1) * THREAD_NUM,
                                     cmd.getOptionValue("msp").toLowerCase());
 
                             long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0,

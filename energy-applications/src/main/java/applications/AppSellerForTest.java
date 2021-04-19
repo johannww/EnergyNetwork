@@ -191,7 +191,8 @@ public class AppSellerForTest {
         ArgParserSellerTest testParser = new ArgParserSellerTest();
 
         cmd = testParser.parseArgs(args);
-
+        String cliApplicationStr = System.getenv("APPLICATION_INSTANCE_ID");
+        int cliApplicationId = cliApplicationStr.length() > 0 ? Integer.parseInt(cliApplicationStr) : 0;
         int THREAD_NUM = Integer.parseInt(cmd.getOptionValue("sellers"));
         String msp = cmd.getOptionValue("msp");
         String baseDir = cmd.getOptionValue("basedir");
@@ -252,7 +253,7 @@ public class AppSellerForTest {
                         try {
 
                             List<PublishedSellBid> publishedBids = new LinkedList<PublishedSellBid>();
-                            String sellerFullName = String.format("seller%d-%s", threadNum,
+                            String sellerFullName = String.format("seller%d-%s", threadNum + (cliApplicationId-1) * THREAD_NUM,
                                     cmd.getOptionValue("msp").toLowerCase());
                             registerAuctionEventListener(contract, (X509Identity) identity, publishedBids,
                                     sellerFullName);

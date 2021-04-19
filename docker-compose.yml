@@ -160,12 +160,14 @@ services:
             - fabric-network
     
     cli-applications-ubuntu:
-        container_name: cli-applications
+        container_name: cli-applications-${APPLICATION_INSTANCE_ID}
         image: energy-network-ubuntu
         tty: true
         working_dir: /EnergyNetwork/energy-applications
         command: sh
         stdin_open: true
+        environment:
+            - APPLICATION_INSTANCE_ID=${APPLICATION_INSTANCE_ID}
         volumes:
             - ${BASE_DIR}:/EnergyNetwork
         networks:
