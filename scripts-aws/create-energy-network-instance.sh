@@ -9,6 +9,9 @@ blueback="\0033[1;37;44m"
 resetvid="\0033[0m"
 SCRIPT_DIR=$(dirname "$(realpath "$0")")
 
+machineName=$1
+awsInstanceType=$2
+
 securityGroup=$(aws ec2 describe-security-groups --output text --query 'SecurityGroups[0].GroupId')
 
 subnetId=$(aws ec2 describe-subnets --output text --query 'Subnets[0].SubnetId')
@@ -22,7 +25,7 @@ keyPairName=$(aws ec2 describe-key-pairs --output text --query 'KeyPairs[0].KeyN
 
 imageId=$(aws ec2 describe-images --owners "self" --filters Name=name,Values=EnergyNetworkImage --output text --query 'Images[0].ImageId')
 
-instanceId=$(aws ec2 run-instances --image-id $imageId --count 1 --instance-type t2.micro --key-name $keyPairName --security-group-ids $securityGroup --subnet-id $subnetId --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$1}]" --output text --query 'Instances[0].InstanceId')
+instanceId=$(aws ec2 run-instances --image-id $imageId --count 1 --instance-type $awsInstanceType --key-name $keyPairName --security-group-ids $securityGroup --subnet-id $subnetId --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$machineName}]" --output text --query 'Instances[0].InstanceId')
 
 #instanceId=$(aws ec2 describe-instances --output text --query 'Reservations[0].Instances[0].InstanceId') && echo $instanceId
 aws ec2 wait instance-running --instance-ids $instanceId

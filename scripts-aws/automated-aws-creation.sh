@@ -10,19 +10,28 @@ export BINDABLE_PORT=7000
 blueback="\0033[1;37;44m"
 resetvid="\0033[0m"
 
+
 print_usage() {
- printf "Usage: pass '-e' to NOT register and enroll with the CAs, otherwise all credentials will be enrolled with the CAs"
+ printf "       Usage: pass '-e' to NOT register and enroll with the CAs, otherwise all credentials will be enrolled with the CAs\n \
+        Orderers AWS instance type: '-o [t2.micro | c6g.16xlarge | m6g.16xlarge | ... ANY AWS INSTANCE TYPE ..]' \n \
+        Peers AWS instance type: '-o [t2.micro | c6g.16xlarge | m6g.16xlarge | ... ANY AWS INSTANCE TYPE ..]' \n \
+        Applications AWS instance type: '-o [t2.micro | c6g.16xlarge | m6g.16xlarge | ... ANY AWS INSTANCE TYPE ..]' \n \
+        Aws instance reference: https://aws.amazon.com/ec2/instance-types/ "
 }
 
 registerAndEnroll='true'
-while getopts 'e' flag; do
+while getopts 'eo:p:a:' flag; do
   case "${flag}" in
     e) registerAndEnroll='false' ;;
+    o) ordererInstanceType=${OPTARG} ;;
+    p) peerInstanceType=${OPTARG} ;;
+    a) applicationsInstanceType=${OPTARG} ;;
     *) print_usage
        exit 1 ;;
   esac
 done
 
+exit 1
 
 findOrgIndexByName () {
     for ((i=0; i<$numberOfOrgs; i+=1)); do
@@ -85,12 +94,12 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     nPeers=${matrix[$org,peer-quantity]}
 
     for ((i=1; i<=$nPeers; i+=1)); do
-        orgsPeerHosts[peer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh peer$i-$orgName)
+        orgsPeerHosts[peer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh peer$i-$orgName $ordererInstanceType)
     done
 
     nOrds=${matrix[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
-        orgsOrdHosts[orderer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh orderer$i-$orgName)
+        orgsOrdHosts[orderer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh orderer$i-$orgName $peerInstanceType)
     done
 
 done
@@ -695,7 +704,7 @@ mkdir -p $BASE_DIR/test-reports
 tar -czf energy-applications.tar.gz -C $BASE_DIR energy-applications
 echo -e $blueback "Creating energy-applications " $resetvid
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
-    applicationsHosts[$i]=$($SCRIPT_DIR/create-energy-network-instance.sh application$i) 
+    applicationsHosts[$i]=$($SCRIPT_DIR/create-energy-network-instance.sh application$i $applicationsInstanceType) 
     scp -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem energy-applications.tar.gz ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork
     scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork/
     ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${applicationsHosts[$i]} << EOF

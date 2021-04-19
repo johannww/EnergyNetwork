@@ -24,8 +24,11 @@ fi
 echo -e $blueback \# getting the first key pair name $resetvid
 keyPairName=$(aws ec2 describe-key-pairs --output text --query 'KeyPairs[0].KeyName') && echo $keyPairName
 
-echo -e $blueback \# starting instance with Amazon Ubuntu 20.04 Server: ami-0b9517e2052e8be7a $resetvid
-instanceId=$(aws ec2 run-instances --image-id ami-0b9517e2052e8be7a --count 1 --instance-type t2.micro --key-name $keyPairName --security-group-ids $securityGroup --subnet-id $subnetId --output text --query 'Instances[0].InstanceId') && echo $instanceId
+# South America (Sao Paulo) Ubuntu 20.04 Server ami: ami-0b9517e2052e8be7a
+# South Pacific (Mumbai) Ubuntu 20.04 Server ami: ami-0d758c1134823146a
+
+echo -e $blueback \# starting instance with Amazon Ubuntu 20.04 Server: ami-0d758c1134823146a $resetvid
+instanceId=$(aws ec2 run-instances --image-id ami-0d758c1134823146a --count 1 --instance-type t2.micro --key-name $keyPairName --security-group-ids $securityGroup --subnet-id $subnetId --output text --query 'Instances[0].InstanceId') && echo $instanceId
 
 #instanceId=$(aws ec2 describe-instances --output text --query 'Reservations[0].Instances[0].InstanceId') && echo $instanceId
 aws ec2 wait instance-running --instance-ids $instanceId
