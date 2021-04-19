@@ -111,7 +111,7 @@ services:
             - 9443:9443 #admin server
 
     cli:
-        container_name: cli-${ORG_NAME}
+        container_name: cli
         image: hyperledger/fabric-tools:2.3.0
         tty: true
         stdin_open: true
@@ -119,29 +119,14 @@ services:
         environment: 
             - GOPATH=/opt/gopath
             - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
-            - FABRIC_LOGGING_SPEC=DEBUG
-            #- CORE_PEER_ID=cli-ufsc
-            #- CORE_PEER_ADDRESS=peer1-ufsc:7051
-            #- CORE_PEER_LOCALMSPID=UFSC
-            #- CORE_PEER_TLS_ENABLED=true
-            #- CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/peer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
-            #- CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/peer1/msp           
+            - FABRIC_LOGGING_SPEC=DEBUG          
             - GRPC_GO_LOG_SEVERITY_LEVEL=debug            
             - GRPC_GO_LOG_VERBOSITY_LEVEL=2
-        working_dir: /opt/gopath/src/github.com/hyperledger/fabric/${ORG_NAME}
+        working_dir: /opt/gopath/src/github.com/hyperledger/fabric/
         command: sh
         volumes: 
-            #- ${BASE_DIR}/hyperledger/ufsc/peer1:/tmp/hyperledger/ufsc/peer1
-            #- ${BASE_DIR}/hyperledger/ufsc/orderer1:/tmp/hyperledger/ufsc/orderer1
-            #- ${BASE_DIR}/hyperledger/ufsc/peer1/assets/chaincode:/opt/gopath/src/github.com/hyperledger/fabric-samples/chaincode
-            - ${BASE_DIR}/hyperledger/${ORG_NAME}:/tmp/hyperledger/${ORG_NAME}
-            - ${BASE_DIR}/hyperledger/${ORG_NAME}/admin1:/tmp/hyperledger/${ORG_NAME}/admin1
-            - ${BASE_DIR}/hyperledger/${ORG_NAME}/admin1/chaincode:/opt/gopath/src/github.com/hyperledger/chaincode
-            - ${BASE_DIR}/hyperledger/${ORG_NAME}/buyer1:/tmp/hyperledger/${ORG_NAME}/buyer1
-            - ${BASE_DIR}/hyperledger/${ORG_NAME}/seller1:/tmp/hyperledger/${ORG_NAME}/seller1
-            - ${BASE_DIR}/hyperledger/${ORG_NAME}/sensor1:/tmp/hyperledger/${ORG_NAME}/sensor1
-            - ${BASE_DIR}/hyperledger/${ORG_NAME}/sensor2:/tmp/hyperledger/${ORG_NAME}/sensor2
-            #- ${BASE_DIR}/generated-config:/tmp/config
+            - ${BASE_DIR}/hyperledger:/tmp/hyperledger
+            - ${BASE_DIR}/chaincode:/opt/gopath/src/github.com/hyperledger/chaincode
         networks:
             - fabric-network
     

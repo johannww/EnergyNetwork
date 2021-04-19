@@ -24,13 +24,19 @@ units[DISK_WRITE] = "MB"
 
 
 def memToGibFloat(memStrDockerStats):
+  numPosition = memStrDockerStats.find("GiB /")
+  if numPosition >= 0:
+    return float(memStrDockerStats[:numPosition])
+
   numPosition = memStrDockerStats.find("MiB /")
   if numPosition >= 0:
-    mem = float(memStrDockerStats[:numPosition]) / 1024
-  else:
-    numPosition = memStrDockerStats.find("GiB /")
-    mem = float(memStrDockerStats[:numPosition])
-  return mem
+    return float(memStrDockerStats[:numPosition]) / 1024
+
+  numPosition = memStrDockerStats.find("KiB /")
+  if numPosition >= 0:
+    return float(memStrDockerStats[:numPosition]) / (1024 * 1024)
+
+
 
 def netUsageToMbFloat(netStrDockerStats):
 
