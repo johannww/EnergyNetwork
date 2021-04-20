@@ -505,7 +505,7 @@ for key in ${!orgsPeerHosts[@]}; do
 done
 
 mkdir -p $BASE_DIR/generated-connection-tls
-python $SCRIPT_DIR/awsAppConnectionsCreator.py --basedir $BASE_DIR --awsbasedir '/home/ubuntu/EnergyNetwork' --ordererhosts \{${ordHostsArgs%?}\} --peerhosts \{${peerHostsArgs%?}\}
+python $SCRIPT_DIR/awsAppConnectionsCreator.py --basedir $BASE_DIR --awsbasedir '//EnergyNetwork' --ordererhosts \{${ordHostsArgs%?}\} --peerhosts \{${peerHostsArgs%?}\}
 
 echo -e $blueback \# "Copying organizations 'connections-tls.json' to 'energy-applications/cfgs'"$resetvid
 cp $BASE_DIR/generated-connection-tls/*.*  $BASE_DIR/energy-applications/cfgs/
@@ -719,8 +719,12 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
         export BINDABLE_PORT=0
         export APPLICATION_INSTANCE_ID=$i
         cd EnergyNetwork
+        tar -zxf energy-applications.tar.gz
+        tar -zxf hyperledger.tar.gz
         docker-compose -f docker-compose-aws.yml up -d cli-applications-ubuntu
         mkdir ./test-reports
+        docker exec cli-applications mvn clean
+        docker exec cli-applications mvn package -DskipTests
 EOF
 done
 

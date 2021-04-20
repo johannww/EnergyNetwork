@@ -73,9 +73,11 @@ public class AppPeriodicAuction {
         Identity identity = ApplicationIdentityProvider.getX509Identity(cmd);
         
         // Path to a common connection profile describing the network.
-        String msp = cmd.getOptionValue("msp").toLowerCase();
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
-        Path networkConfigFile = Paths.get("cfgs", String.format("%s%s-connection-tls.json", dockerPrefix, msp));
+        String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
+        String mspLower = cmd.getOptionValue("msp").toLowerCase();
+        Path networkConfigFile = Paths.get("cfgs",
+                String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
         
         // Configure the gateway connection used to access the network.
         Gateway.Builder builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile).discovery(dockerPrefix.length()>0);

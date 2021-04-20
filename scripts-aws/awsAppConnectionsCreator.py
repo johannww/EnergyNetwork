@@ -110,7 +110,7 @@ for org in parsedPreConfig["organizations"]:
             "chaincodeQuery": True,
             "ledgerQuery": True,
             "eventSource": True,
-            "discover": False
+            "discover": True
         }
         appConnectionsTls["organizations"][orgNameUpper]["peers"].append(
             peerName)

@@ -99,9 +99,9 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
 
     nOrds=${parsedConfigMeFirst[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
+        echo -n "orderer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
         (ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[orderer$i-$orgName]} 'bash' << EOF
             docker restart orderer$i-$orgName 
-            echo -n "orderer$i-$orgName: "
             docker exec orderer$i-$orgName du -s
 EOF
 ) >> $testFolder/initial-containers-filesystem-sizes.txt
@@ -111,9 +111,9 @@ EOF
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
+        echo -n "peer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
         (ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[peer$i-$orgName]} 'bash' << EOF
             docker restart peer$i-$orgName
-            echo -n "peer$i-$orgName: "
             docker exec peer$i-$orgName du -s
 EOF
 ) >> $testFolder/initial-containers-filesystem-sizes.txt
@@ -126,7 +126,7 @@ done
 
 echo -e $blueback \## "Restarting 'cli-applications' "   $resetvid
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do 
-    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]} 'bash' << EOF
+    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]} << EOF
         docker restart cli-applications
         mkdir /home/ubuntu/EnergyNetwork/test-reports/$testNumber
 EOF
@@ -156,12 +156,28 @@ echo -e $blueback \## "Starting sensors, sellers and buyers applications"   $res
 #nohup mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp ${parsedTestCfg[sellers,msp]}  --basedir $BASE_DIR --sellers ${parsedTestCfg[sellers,quantity]} --publishinterval ${parsedTestCfg[sellers,publishinterval]}  --publishquantity ${parsedTestCfg[sellers,publishquantity]} --paymentcompanyurl $paymentUrl" > $BASE_DIR/test-reports/AppSellerForTest.out 2>&1 &
 #nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp ${parsedTestCfg[buyers,msp]} --basedir $BASE_DIR --buyers ${parsedTestCfg[buyers,quantity]} --publishinterval ${parsedTestCfg[buyers,publishinterval]}  --publishquantity ${parsedTestCfg[buyers,publishquantity]} --utilityurl $utilityUrl --paymentcompanyurl $paymentUrl" > $BASE_DIR/test-reports/AppBuyerForTest.out 2>&1 &
 export MSYS_NO_PATHCONV=1
+#declare -A parsedTestCfg
+#parsedTestCfg[sensors,msp]=UFSC
+#parsedTestCfg[sensors,quantity]=1
+#parsedTestCfg[sensors,unit]=3834792229
+#parsedTestCfg[sensors,publishinterval]=5000
+#parsedTestCfg[sensors,publishquantity]=3
+#parsedTestCfg[sellers,msp]=UFSC
+#parsedTestCfg[sellers,quantity]=1
+#parsedTestCfg[sellers,publishinterval]=5000
+#parsedTestCfg[sellers,publishquantity]=3
+#paymentUrl=localhost
+#auctionInterval=30000
+#testNumber=2
+#i=1
+#hosts[application1]=ec2-13-233-0-244.ap-south-1.compute.amazonaws.com
+
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
-    (ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]} docker exec cli-applications bash -c 'nohup mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /home/ubuntu/EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1') &
+    (ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]} docker exec cli-applications bash -c "'"'mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'") &
     pidsSensor[$i]=$!
-    (ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]} docker exec cli-applications bash -c 'nohup mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /home/ubuntu/EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1') &
+    (ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]} docker exec cli-applications bash -c "'"'mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1'"'") &
     pidsSeller[$i]=$!
-    #(ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]} docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1') &
+    #(ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]} docker exec cli-applications bash -c "'"'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1'"'") &
     #pidsBuyer[$i]=$!
 done
 #pidBuyer=$(docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTestX509" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTestX509.out 2>&1 & echo $!')
@@ -174,10 +190,9 @@ echo -e $blueback \## "Starting PeriodicAuction application"  $resetvid
 #nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval 50000 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" &
 
 export MSYS_NO_PATHCONV=1
-#(docker exec cli-applications-1 bash -c 'mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1') &
+(ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application1]} docker exec cli-applications bash -c "'"'mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'") &
 unset MSYS_NO_PATHCONV
 #cd ..
-
 #get metrics from peers and orederes metric servers
 #wget nos metrics servers
 
@@ -199,6 +214,9 @@ echo -e $blueback \## "Applications ended "   $resetvid
 
 echo -e $blueback \## "Killing containers logging jobs"   $resetvid 
 jobs -p | xargs kill
+
+echo -e $blueback \## "Stopping periodic auction "   $resetvid 
+ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application1]} docker stop cli-applications
 
 echo -e $blueback \## "final containers sizes "   $resetvid 
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
