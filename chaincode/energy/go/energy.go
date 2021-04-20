@@ -31,6 +31,15 @@ import (
 type EnergyChaincode struct {
 }
 
+// FunctionStats keeps track of functions number of calls and the average
+type FunctionStats struct {
+	NCalls            uint64
+	AvarageExecTimeMs float64
+}
+
+//averageFunctionTime tracks the average time to call a chaincode function
+var averageFunctionTime map[string]FunctionStats
+
 //functionMap to make function calls faster
 var functionMap map[string]func(shim.ChaincodeStubInterface, []string) pb.Response
 
@@ -125,9 +134,8 @@ type SellBid struct {
 	PricePerKWH       float64 `json:"priceperkwh"`
 	EnergyType        string  `json:"energytype"`
 }
-
-//BuyBid is used in the auction
-//BuyBid aprox. memory size = 10 + len(token) + 8 + 8 + 10 + 1 = 37 + len(token) bytes
+functionStats.nCall./ FunctionStats keeps track of functions number of calls and the avarage varageExecTime//BuyBid is used in the auction
+//ByBid aprox. memory size = 10 + len(token) + 8 + 8 + 10 + 1 = 37 + len(token) bytes
 type BuyBid struct {
 	MspIDPaymentCompany string `json:"msppaymentcompany"`
 	Token               string `json:"token"`
@@ -2160,6 +2168,11 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 		now := time.Now()
 		defer func() {
 			elapsed := time.Since(now)
+			functionStats := averageFunctionTime[function]
+			n := float64(functionStats.NCalls)
+			functionStats.NCalls++
+			functionStats.AvarageExecTimeMs = (n/(n+1))*functionStats.AvarageExecTimeMs +
+				float64(elapsed.Milliseconds())/(n+1)
 			fmt.Printf("Function: %s took \n", function)
 			fmt.Println(elapsed)
 		}()
@@ -2330,6 +2343,8 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 
 func main() {
 	chaincode := new(EnergyChaincode)
+
+	averageFunctionTime = make(map[string]FunctionStats)
 
 	functionMap = map[string]func(shim.ChaincodeStubInterface, []string) pb.Response{
 		"sensorDeclareActive": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
