@@ -92,6 +92,7 @@ def syncStats():
 def saveEntitiesGraphs():
   for entityName in stats:
     for metric in stats[entityName]:
+      plt.title("{} - {}".format(entityName, metric))
       plt.plot(stats[entityName][metric])
       plt.xlabel("Time (s)")
       plt.ylabel("{} ({})".format(metric, units[metric]))

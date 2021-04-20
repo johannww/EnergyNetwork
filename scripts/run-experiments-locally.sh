@@ -75,7 +75,7 @@ parseTestConfigMap buyers "${buyersKeyValues[@]}"
 
 #initialize peers and orderers
 echo -e $blueback \## "Restarting peers and orderers and measuring their files size "   $resetvid 
-echo 'Files size sum (du -s) result from each container:' > $testFolder/initial-containers-filesystem-sizes.txt
+echo 'Files size sum (du / -s) result from each container:' > $testFolder/initial-containers-filesystem-sizes.txt
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
     orgName=${parsedConfigMeFirst[$org,name]}
 
@@ -84,7 +84,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         docker restart orderer$i-$orgName 
         docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" orderer$i-$orgName > $testFolder/stats-orderer$i-$orgName.txt &
         echo -n "orderer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
-        docker exec orderer$i-$orgName du -s >> $testFolder/initial-containers-filesystem-sizes.txt
+        docker exec orderer$i-$orgName du / -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
@@ -94,7 +94,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         chaincodeContainerName=$(docker container ls --format "{{.Names}}" | grep "dev-peer$i-$orgName")
         docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" $chaincodeContainerName > $testFolder/stats-chaincode-peer$i-$orgName.txt &
         echo -n "peer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
-        docker exec peer$i-$orgName du -s >> $testFolder/initial-containers-filesystem-sizes.txt
+        docker exec peer$i-$orgName du / -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
 done
 
@@ -175,13 +175,13 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     nOrds=${parsedConfigMeFirst[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
         echo -n "orderer$i-$orgName: "  >> $testFolder/final-containers-filesystem-sizes.txt
-        docker exec orderer$i-$orgName du -s >> $testFolder/final-containers-filesystem-sizes.txt
+        docker exec orderer$i-$orgName du / -s >> $testFolder/final-containers-filesystem-sizes.txt
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
         echo -n "peer$i-$orgName: "  >> $testFolder/final-containers-filesystem-sizes.txt
-        docker exec peer$i-$orgName du -s >> $testFolder/final-containers-filesystem-sizes.txt
+        docker exec peer$i-$orgName du / -s >> $testFolder/final-containers-filesystem-sizes.txt
     done
 done
 

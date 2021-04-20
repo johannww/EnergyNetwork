@@ -41,6 +41,12 @@ findOrgIndexByName () {
     done
 }
 
+sshCmd() {
+    local host=$1
+    shift 
+    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$host "$@"  
+}
+
 docker-compose -f docker-compose-aws.yml down --remove-orphans
 #find hyperledger/ -type f ! \( -iname "*.yaml" -or -iname "*.go" -or -iname "*.mod" -or -iname "*.sum" \) -delete
 #find hyperledger/ -type l ! \( -iname "*.yaml" -or -iname "*.go" -or -iname "*.mod" -or -iname "*.sum" \) -delete
@@ -423,7 +429,7 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     for ((i=1; i<=$nOrds; i+=1)); do
         scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
 
-        ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]} << EOF
+        sshCmd ${orgsOrdHosts[orderer$i-$ORG_NAME]} << EOF
             export ORG_NAME=${matrix[$l,name]}
             export ORG_NAME_UPPER=\${ORG_NAME^^}
             export ORDERER_NUMBER=$i
@@ -452,7 +458,7 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     nPeers=${matrix[$l,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
         scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
-        ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]} << EOF
+        sshCmd ${orgsPeerHosts[peer$i-$ORG_NAME]} << EOF
             export COMPOSE_PROJECT_NAME="fabric"
             export ORG_NAME=${matrix[$l,name]}
             export ORG_NAME_UPPER=\${ORG_NAME^^}
@@ -714,7 +720,7 @@ echo -e $blueback "Creating cli-applications-ubuntu container in application ins
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem energy-applications.tar.gz ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork
     scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork/
-    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${applicationsHosts[$i]} << EOF
+   sshCmd ${applicationsHosts[$i]} << EOF
         export COMPOSE_PROJECT_NAME="fabric"
         export BINDABLE_PORT=0
         export APPLICATION_INSTANCE_ID=$i
