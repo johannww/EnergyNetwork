@@ -34,7 +34,7 @@ FALAR SOBRE
 
 ## Installing and patching dependencies
 
-After following the tutorial on [Hyperldeger Fabric Pre-requisites](https://hyperledger-fabric.readthedocs.io/en/release-2.2/prereqs.html), the `install-dependencies.sh` script will clone, patch and install:
+After following the tutorial on [Hyperldeger Fabric Pre-requisites](https://hyperledger-fabric.readthedocs.io/en/release-2.2/prereqs.html), the `install-dependencies.sh` script will clone, patch and install **MODIFIED**:
 
 [Hyperledger Fabric](https://github.com/hyperledger/fabric)
 

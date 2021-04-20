@@ -33,8 +33,8 @@ type EnergyChaincode struct {
 
 // FunctionStats keeps track of functions number of calls and the average
 type FunctionStats struct {
-	NCalls            uint64
-	AvarageExecTimeMs float64
+	NCalls            uint64  `json:"calls"`
+	AvarageExecTimeMs float64 `json:"average_ms"`
 }
 
 //averageFunctionTime tracks the average time to call a chaincode function
@@ -181,8 +181,32 @@ var EnergyTypeSmartDataUnits = map[string][]uint64{
 	"geothermal": []uint64{3834792292},                         //kelvin
 }
 
+var printEnabled = false
+
+func printf(mainStr string, a ...interface{}) {
+	if printEnabled {
+		fmt.Printf(mainStr, a...)
+	}
+}
+
+func println(a ...interface{}) {
+	if printEnabled {
+		fmt.Println(a...)
+	}
+}
+
+func (chaincode *EnergyChaincode) setPrint(print bool) pb.Response {
+	printEnabled = print
+	return shim.Success(nil)
+}
+
+func (chaincode *EnergyChaincode) getAverageFunctionTimes() pb.Response {
+	jsonFunctionTimes, _ := json.Marshal(averageFunctionTime)
+	return shim.Success([]byte(jsonFunctionTimes))
+}
+
 func (chaincode *EnergyChaincode) getState(stub shim.ChaincodeStubInterface, args []string) pb.Response {
-	fmt.Println("---- getState function beggining ----")
+	println("---- getState function beggining ----")
 	key := args[0]
 	state, err := stub.GetState(key)
 
@@ -190,7 +214,7 @@ func (chaincode *EnergyChaincode) getState(stub shim.ChaincodeStubInterface, arg
 		return shim.Error(err.Error())
 	}
 
-	fmt.Println("State: " + string(state))
+	println("State: " + string(state))
 	return shim.Success(nil)
 }
 
@@ -203,7 +227,7 @@ func (chaincode *EnergyChaincode) getState(stub shim.ChaincodeStubInterface, arg
  - MSP ID is unique among all organizations and SENSOR ID is unique within the same MSP.
 */
 func (chaincode *EnergyChaincode) sensorDeclareActive(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Println("---- sensorDeclareActive function beggining ----")
+	println("---- sensorDeclareActive function beggining ----")
 
 	//check if caller is a sensor
 	err := cid.AssertAttributeValue(stub, "energy.sensor", "true")
@@ -223,9 +247,9 @@ func (chaincode *EnergyChaincode) sensorDeclareActive(stub shim.ChaincodeStubInt
 		return shim.Error(err.Error())
 	}
 
-	fmt.Println("Key: " + key)
-	fmt.Println(fmt.Sprintf("Key (hex): %x", key))
-	fmt.Println("State: " + string(isActive))
+	println("Key: " + key)
+	println(fmt.Sprintf("Key (hex): %x", key))
+	println("State: " + string(isActive))
 
 	if isActive == nil && err == nil {
 		//setting sensor to ACTIVE
@@ -269,7 +293,7 @@ func (chaincode *EnergyChaincode) sensorDeclareActive(stub shim.ChaincodeStubInt
  - Returns the State Key of each active sensor in a JSON formatted string
 */
 func (chaincode *EnergyChaincode) getActiveSensors(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Println("---- getActiveSensors function beggining ----")
+	println("---- getActiveSensors function beggining ----")
 
 	err := cid.AssertAttributeValue(stub, "energy.admin", "true")
 	if err != nil {
@@ -299,7 +323,7 @@ func (chaincode *EnergyChaincode) getActiveSensors(stub shim.ChaincodeStubInterf
  - If the 'mspID' is empty, it returns ALL Active Sensors
 */
 func getActiveSensorsList(stub shim.ChaincodeStubInterface, mspID string) ([]string, []st.ActiveSensor, error) {
-	fmt.Println("---- getActiveSensorsList function beggining ----")
+	println("---- getActiveSensorsList function beggining ----")
 
 	var stateIterator shim.StateQueryIteratorInterface
 	var err error
@@ -327,13 +351,13 @@ func getActiveSensorsList(stub shim.ChaincodeStubInterface, mspID string) ([]str
 		activeSensorKeys = append(activeSensorKeys, queryResult.Key)
 		err = proto.Unmarshal(queryResult.Value, &activityData)
 		activeSensorsDataList = append(activeSensorsDataList, activityData)
-		//fmt.Println("NameSpace: " + queryResult.Namespace)
-		//fmt.Println("Key: " + queryResult.Key)
-		//fmt.Printf("%+v\n", activityData)
+		//println("NameSpace: " + queryResult.Namespace)
+		//println("Key: " + queryResult.Key)
+		//printf("%+v\n", activityData)
 		if activityData.IsActive == true {
-			fmt.Printf("%+v\n", activityData)
+			printf("%+v\n", activityData)
 		} else {
-			fmt.Println("SENSOR NOT ACTIVE!")
+			println("SENSOR NOT ACTIVE!")
 		}
 	}
 
@@ -351,7 +375,7 @@ func getActiveSensorsList(stub shim.ChaincodeStubInterface, mspID string) ([]str
  disable a sensor
 */
 func (chaincode *EnergyChaincode) disableSensors(stub shim.ChaincodeStubInterface, sensorsIDs []string) pb.Response {
-	fmt.Println("---- disableSensor function beggining ----")
+	println("---- disableSensor function beggining ----")
 
 	var activityData st.ActiveSensor
 
@@ -400,7 +424,7 @@ func (chaincode *EnergyChaincode) disableSensors(stub shim.ChaincodeStubInterfac
  enable a sensor
 */
 func (chaincode *EnergyChaincode) enableSensors(stub shim.ChaincodeStubInterface, sensorsIDs []string) pb.Response {
-	fmt.Println("---- enableSensor function beggining ----")
+	println("---- enableSensor function beggining ----")
 
 	var activityData st.ActiveSensor
 
@@ -444,7 +468,7 @@ func (chaincode *EnergyChaincode) enableSensors(stub shim.ChaincodeStubInterface
  organizations
 */
 func (chaincode *EnergyChaincode) setTrustedSensors(stub shim.ChaincodeStubInterface, sensorMspOwnerIDs []string, sensorsIDs []string) pb.Response {
-	fmt.Println("---- setTrustedSensors function beggining ----")
+	println("---- setTrustedSensors function beggining ----")
 
 	//check if caller in an admin
 	err := cid.AssertAttributeValue(stub, "energy.admin", "true")
@@ -498,7 +522,7 @@ func (chaincode *EnergyChaincode) setTrustedSensors(stub shim.ChaincodeStubInter
  - It DOES NOT MEAN that the organization consider the sensor a malicious attacker
 */
 func (chaincode *EnergyChaincode) setDistrustedSensors(stub shim.ChaincodeStubInterface, sensorMspOwnerIDs []string, sensorsIDs []string) pb.Response {
-	fmt.Println("---- setDistrustedSensors function beggining ----")
+	println("---- setDistrustedSensors function beggining ----")
 
 	//check if caller in an admin
 	err := cid.AssertAttributeValue(stub, "energy.admin", "true")
@@ -549,7 +573,7 @@ func (chaincode *EnergyChaincode) setDistrustedSensors(stub shim.ChaincodeStubIn
 */
 func (chaincode *EnergyChaincode) getTrustedSensors(stub shim.ChaincodeStubInterface) pb.Response {
 
-	fmt.Println("---- getTrustedSensors function beggining ----")
+	println("---- getTrustedSensors function beggining ----")
 
 	//only organization admins can call this function
 	err := cid.AssertAttributeValue(stub, "energy.admin", "true")
@@ -568,7 +592,7 @@ func (chaincode *EnergyChaincode) getTrustedSensors(stub shim.ChaincodeStubInter
 }
 
 func getMspTrustedSensorsMap(stub shim.ChaincodeStubInterface, mspID string) (map[string]bool, []byte, error) {
-	fmt.Println("---- getMspTrustedSensorsMap function beggining ----")
+	println("---- getMspTrustedSensorsMap function beggining ----")
 	var mspTrustedSensors map[string]bool
 
 	key, _ := stub.CreateCompositeKey("MspTrustedSensors", []string{mspID})
@@ -584,7 +608,7 @@ func getMspTrustedSensorsMap(stub shim.ChaincodeStubInterface, mspID string) (ma
 
 	for sensorID, trusted := range mspTrustedSensors {
 		if trusted {
-			fmt.Println("Sensor: " + sensorID + "\nTrusted: true")
+			println("Sensor: " + sensorID + "\nTrusted: true")
 		} else {
 			delete(mspTrustedSensors, sensorID)
 		}
@@ -594,7 +618,7 @@ func getMspTrustedSensorsMap(stub shim.ChaincodeStubInterface, mspID string) (ma
 }
 
 func getAllMspsTrustedSensorsMaps(stub shim.ChaincodeStubInterface) (map[string]map[string]bool, error) {
-	fmt.Println("---- getAllMspsTrustedSensorsMaps function beggining ----")
+	println("---- getAllMspsTrustedSensorsMaps function beggining ----")
 
 	mspTrustedSensorsMapIterator, _ := stub.GetStateByPartialCompositeKey("MspTrustedSensors", []string{})
 
@@ -611,8 +635,8 @@ func getAllMspsTrustedSensorsMaps(stub shim.ChaincodeStubInterface) (map[string]
 			return nil, err
 		}
 		mspID := queryResult.Key[len("MspTrustedSensors")+2 : len(queryResult.Key)-1]
-		fmt.Printf("mspID: %s\n", mspID)
-		fmt.Printf("mspTrustedSensors: %+v\n", mspTrustedSensors)
+		printf("mspID: %s\n", mspID)
+		printf("mspTrustedSensors: %+v\n", mspTrustedSensors)
 		allMspTrustedSensorsMaps[mspID] = mspTrustedSensors
 	}
 
@@ -637,13 +661,13 @@ func getAllMspsTrustedSensorsMaps(stub shim.ChaincodeStubInterface) (map[string]
  the current time and the data timestamp.
 */
 func (chaincode *EnergyChaincode) publishSensorData(stub shim.ChaincodeStubInterface, version int8, unit uint32, timestamp uint64, value float64, e uint8, confidence uint8, dev uint32) pb.Response {
-	fmt.Println("---- publishSensorData function beggining ----")
+	println("---- publishSensorData function beggining ----")
 
 	//verify if data is still valid based on timestamp
 	currentTime := uint64(time.Now().Unix())
 	if currentTime > timestamp+acceptedDelay {
 		//return shim.Error("The data timestamp is too old!")
-		fmt.Println("The data timestamp is too old!")
+		println("The data timestamp is too old!")
 	}
 
 	//check if caller is a sensor
@@ -709,7 +733,7 @@ func (chaincode *EnergyChaincode) getSensorsPublishedData(stub shim.ChaincodeStu
 	//CreateAsset(ctx contractapi.TransactionContextInterface,
 	//	id string, version int8, unit int, timestamp int, value float64, e int8, confidence int8, x int, y int, z int, dev int8) error
 
-	fmt.Println("---- getSensorPublishedData function beggining ----")
+	println("---- getSensorPublishedData function beggining ----")
 
 	err := cid.AssertAttributeValue(stub, "energy.admin", "true")
 	if err != nil {
@@ -725,21 +749,21 @@ func (chaincode *EnergyChaincode) getSensorsPublishedData(stub shim.ChaincodeStu
 			return shim.Error(err.Error())
 		}
 
-		fmt.Println(stateIterator.HasNext())
+		println(stateIterator.HasNext())
 
 		for stateIterator.HasNext() {
 			queryResult, err := stateIterator.Next()
 			if err != nil {
 				return shim.Error(err.Error())
 			}
-			fmt.Println("NameSpace: " + queryResult.Namespace)
-			fmt.Println("Key: " + queryResult.Key)
+			println("NameSpace: " + queryResult.Namespace)
+			println("Key: " + queryResult.Key)
 			var asset st.SmartData
 			err = proto.Unmarshal(queryResult.Value, &asset)
 			if err != nil {
 				return shim.Error(err.Error())
 			}
-			fmt.Printf("%+v\n", asset)
+			printf("%+v\n", asset)
 		}
 
 		stateIterator.Close()
@@ -759,7 +783,7 @@ func (chaincode *EnergyChaincode) getSensorsPublishedData(stub shim.ChaincodeStu
  - Admins can only register seller for their MSP
 */
 func (chaincode *EnergyChaincode) registerSeller(stub shim.ChaincodeStubInterface, sellerID string, mspIDSmartMeter string, smartMeterID string, windTurbinesNumber uint64, solarPanelsNumber uint64) pb.Response {
-	fmt.Println("---- registerSeller function beggining ----")
+	println("---- registerSeller function beggining ----")
 
 	//only admins can register sellers
 	err := cid.AssertAttributeValue(stub, "energy.admin", "true")
@@ -821,7 +845,7 @@ func (chaincode *EnergyChaincode) registerSeller(stub shim.ChaincodeStubInterfac
 		return shim.Error(err.Error())
 	}
 
-	fmt.Printf("SellerInfo: %+v\n", sellerInfo)
+	printf("SellerInfo: %+v\n", sellerInfo)
 
 	// storing the relation SmartMeter --> Seller Info
 	meterToSellerPointer := st.MeterSeller{
@@ -849,7 +873,7 @@ func (chaincode *EnergyChaincode) registerSeller(stub shim.ChaincodeStubInterfac
  @Return error
 */
 func updateSellerInfo(stub shim.ChaincodeStubInterface, sellerInfo st.SellerInfo) error {
-	fmt.Println("---- updateSellerInfo function beggining ----")
+	println("---- updateSellerInfo function beggining ----")
 
 	key, err := stub.CreateCompositeKey("SellerInfo", []string{sellerInfo.MspIDSeller, sellerInfo.SellerID})
 
@@ -871,7 +895,7 @@ func updateSellerInfo(stub shim.ChaincodeStubInterface, sellerInfo st.SellerInfo
  @Return SellerInfor related to the Smart Meter of MSP 'meterMspID' and ID of 'meterID'
 */
 func getSellerInfoRelatedToSmartMeter(stub shim.ChaincodeStubInterface, meterMspID string, meterID string) (st.SellerInfo, error) {
-	fmt.Println("---- getSellerInfoRelatedToSmartMeter function beggining ----")
+	println("---- getSellerInfoRelatedToSmartMeter function beggining ----")
 
 	var sellerInfo st.SellerInfo
 	var meterSeller st.MeterSeller
@@ -918,7 +942,7 @@ func getSellerInfoRelatedToSmartMeter(stub shim.ChaincodeStubInterface, meterMsp
 
 //document later
 func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStubInterface, t0 uint64, t1 uint64, energyByTypeGeneratedKWH map[string]float64) pb.Response {
-	fmt.Println("---- publishEnergyGeneration function beggining ----")
+	println("---- publishEnergyGeneration function beggining ----")
 
 	//check if information comes form a meter
 	//err := cid.AssertAttributeValue(stub, "energy.meter", "true")
@@ -941,8 +965,8 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 	meterID, err := cid.GetID(stub)
 	meterMspID, err := cid.GetMSPID(stub)
 
-	fmt.Println("Meter MSP ID: " + meterMspID)
-	fmt.Println("Meter ID: " + meterID)
+	println("Meter MSP ID: " + meterMspID)
+	println("Meter ID: " + meterID)
 
 	//get SellerInfo related to the smart meter
 	sellerInfo, err := getSellerInfoRelatedToSmartMeter(stub, meterMspID, meterID) //REACTIVATE THIS LINE
@@ -950,7 +974,7 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	fmt.Printf("sellerInfo: %+v\n", sellerInfo)
+	printf("sellerInfo: %+v\n", sellerInfo)
 
 	//test seller is not trying to generate energy twice for the same time interval
 	if t0 < sellerInfo.LastGenerationTimestamp || t1 < sellerInfo.LastGenerationTimestamp {
@@ -972,48 +996,48 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 	x, err := strconv.Atoi(xCert)
 	y, err := strconv.Atoi(yCert)
 	z, err := strconv.Atoi(zCert)
-	fmt.Println(x)
-	fmt.Println(y)
-	fmt.Println(z)
+	println(x)
+	println(y)
+	println(z)
 
 	//get Active Sensors
 	_, activeSensorsDataList, err := getActiveSensorsList(stub, "")
 
-	fmt.Printf("Active Sensors Data List %+v\n", activeSensorsDataList)
+	printf("Active Sensors Data List %+v\n", activeSensorsDataList)
 	//definir criterios de aceitacao. EX: 3 organizacoes precisam ter sensores a distancia X
 	//usar X, Y e Z para calcular a distancia
 	var nearActiveSensorsList []st.ActiveSensor
 
 	for _, activeSensorData := range activeSensorsDataList {
 		distanceBetweenSensorAndGenerator := math.Sqrt(math.Pow(float64(activeSensorData.X-int32(x)), 2) + math.Pow(float64(activeSensorData.Y-int32(y)), 2))
-		fmt.Printf("distanceBetweenSensorAndGenerator: %f\n", distanceBetweenSensorAndGenerator)
-		fmt.Printf("activeSensorData.Radius: %f\n", activeSensorData.Radius)
+		printf("distanceBetweenSensorAndGenerator: %f\n", distanceBetweenSensorAndGenerator)
+		printf("activeSensorData.Radius: %f\n", activeSensorData.Radius)
 		if distanceBetweenSensorAndGenerator <= activeSensorData.Radius {
 			nearActiveSensorsList = append(nearActiveSensorsList, activeSensorData)
 		}
 	}
 
-	fmt.Printf("nearActiveSensorsList: %+v\n", nearActiveSensorsList)
+	printf("nearActiveSensorsList: %+v\n", nearActiveSensorsList)
 	//chamar alguma funcao que puxe do banco de dados os criterios de cada validador (EXECUTAR DE ACORDO COM A ORGANIZACAO A QUAL O PEER EXECUTANDO PERTENCE)
 	peerOrg, err := GetMSPID()
-	fmt.Println("Peer executing MSP: " + peerOrg)
+	println("Peer executing MSP: " + peerOrg)
 
 	//mspTrustedSensors, _, err := getMspTrustedSensorsMap(stub, peerOrg)
 	allMspsTrustedSensorsMaps, _ := getAllMspsTrustedSensorsMaps(stub)
 	mspTrustedSensors := allMspsTrustedSensorsMaps[peerOrg]
 
-	fmt.Printf("mspTrustedSensors: %+v\n", mspTrustedSensors)
+	printf("mspTrustedSensors: %+v\n", mspTrustedSensors)
 
 	var nearTrustedActiveSensors []st.ActiveSensor
 
 	for _, nearActiveSensor := range nearActiveSensorsList {
-		fmt.Printf("nearActiveSensor: %+v\n Trusted: %t\n", nearActiveSensor, mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID])
+		printf("nearActiveSensor: %+v\n Trusted: %t\n", nearActiveSensor, mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID])
 		if mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID] {
 			nearTrustedActiveSensors = append(nearTrustedActiveSensors, nearActiveSensor)
 		}
 	}
 
-	fmt.Printf("nearTrustedActiveSensors: %+v\n", nearTrustedActiveSensors)
+	printf("nearTrustedActiveSensors: %+v\n", nearTrustedActiveSensors)
 
 	//timeTestFunction
 	//t.measureSpeedSmartDataQuery(stub, 100, &nearTrustedActiveSensors, t0, t1)
@@ -1059,7 +1083,7 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 		return shim.Error(err.Error())
 	}
 
-	fmt.Printf("Energy available for selling by type: %+v\n", energyByTypeGeneratedKWH)
+	printf("Energy available for selling by type: %+v\n", energyByTypeGeneratedKWH)
 
 	successMessage := fmt.Sprintf("%+v\n successfully available for selling by the seller %s%s with the smart meter of ID: %s%s", energyByTypeGeneratedKWH, sellerInfo.MspIDSeller, sellerInfo.SellerID, sellerInfo.MspIDSmartMeter, sellerInfo.SmartMeterID)
 
@@ -1068,7 +1092,7 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 }
 
 func getMaxPossibleGeneratedWindEnergyInInterval(stub shim.ChaincodeStubInterface, nearTrustedSensorsSmartData *[]st.SmartData, windTurbinesNumber uint64, t0 uint64, t1 uint64) float64 {
-	fmt.Println("---- getMaxPossibleGeneratedWindEnergyInInterval function beggining ----")
+	println("---- getMaxPossibleGeneratedWindEnergyInInterval function beggining ----")
 
 	sensorSmartDataQuantity := make(map[string]int)
 	sensorSmartDataSum := make(map[string]float64)
@@ -1083,7 +1107,7 @@ func getMaxPossibleGeneratedWindEnergyInInterval(stub shim.ChaincodeStubInterfac
 		mod := smartData.Unit >> 27 & 3
 		//we assume that each sensor send data with a uniform periodicity
 		if si == 1 {
-			//fmt.Printf("MOD field: %d\n", mod)
+			//printf("MOD field: %d\n", mod)
 			if mod == 0 {
 				isMetersPerSecondUnit := (smartData.Unit & smartDataUnitMask) == smartDataMeterPerSecondUnitPart
 				if isMetersPerSecondUnit {
@@ -1096,13 +1120,13 @@ func getMaxPossibleGeneratedWindEnergyInInterval(stub shim.ChaincodeStubInterfac
 						sensorSmartDataSum[smartData.AssetID] += smartData.Value
 					}
 				} else {
-					fmt.Printf("SmartData of AssetID: %s%d is not a meter/second unit\n", smartData.AssetID, smartData.Timestamp)
+					printf("SmartData of AssetID: %s%d is not a meter/second unit\n", smartData.AssetID, smartData.Timestamp)
 				}
 			} else {
-				fmt.Printf("SmartData of AssetID: %s%d is not DIRECTLY DESCRIBED\n", smartData.AssetID, smartData.Timestamp)
+				printf("SmartData of AssetID: %s%d is not DIRECTLY DESCRIBED\n", smartData.AssetID, smartData.Timestamp)
 			}
 		} else {
-			fmt.Printf("SmartData of AssetID: %s%d is not a SI unit\n", smartData.AssetID, smartData.Timestamp)
+			printf("SmartData of AssetID: %s%d is not a SI unit\n", smartData.AssetID, smartData.Timestamp)
 		}
 	}
 
@@ -1123,7 +1147,7 @@ func getMaxPossibleGeneratedWindEnergyInInterval(stub shim.ChaincodeStubInterfac
 }
 
 func getMaxPossibleGeneratedSolarEnergyInInterval(stub shim.ChaincodeStubInterface, nearTrustedSensorsSmartData *[]st.SmartData, solarPanelsNumber uint64, t0 uint64, t1 uint64) float64 {
-	fmt.Println("---- getMaxPossibleGeneratedSolarEnergyInInterval function beggining ----")
+	println("---- getMaxPossibleGeneratedSolarEnergyInInterval function beggining ----")
 
 	sensorSmartDataQuantity := make(map[string]int)
 	sensorSmartDataSum := make(map[string]float64)
@@ -1137,7 +1161,7 @@ func getMaxPossibleGeneratedSolarEnergyInInterval(stub shim.ChaincodeStubInterfa
 		mod := smartData.Unit >> 27 & 3
 		//we assume that each sensor send data with a uniform periodicity
 		if si == 1 {
-			//fmt.Printf("MOD field: %d\n", mod)
+			//printf("MOD field: %d\n", mod)
 			if mod == 0 {
 				isCandelaUnit := (smartData.Unit & smartDataUnitMask) == smartDataCandelaUnitPart
 				if isCandelaUnit {
@@ -1151,13 +1175,13 @@ func getMaxPossibleGeneratedSolarEnergyInInterval(stub shim.ChaincodeStubInterfa
 						sensorSmartDataSum[smartData.AssetID] += smartData.Value
 					}
 				} else {
-					fmt.Printf("SmartData of AssetID: %s%d is not a CANDELA unit", smartData.AssetID, smartData.Timestamp)
+					printf("SmartData of AssetID: %s%d is not a CANDELA unit", smartData.AssetID, smartData.Timestamp)
 				}
 			} else {
-				fmt.Printf("SmartData of AssetID: %s%d is not DIRECTLY DESCRIBED", smartData.AssetID, smartData.Timestamp)
+				printf("SmartData of AssetID: %s%d is not DIRECTLY DESCRIBED", smartData.AssetID, smartData.Timestamp)
 			}
 		} else {
-			fmt.Printf("SmartData of AssetID: %s%d is not a SI unit", smartData.AssetID, smartData.Timestamp)
+			printf("SmartData of AssetID: %s%d is not a SI unit", smartData.AssetID, smartData.Timestamp)
 		}
 	}
 
@@ -1178,7 +1202,7 @@ func getMaxPossibleGeneratedSolarEnergyInInterval(stub shim.ChaincodeStubInterfa
 }
 
 func getSmartDataBySensorsInInterval(stub shim.ChaincodeStubInterface, nearTrustedActiveSensors *[]st.ActiveSensor, t0 uint64, t1 uint64) ([]st.SmartData, error) {
-	fmt.Println("---- getSmartDataBySensorsInInterval function beggining ----")
+	println("---- getSmartDataBySensorsInInterval function beggining ----")
 	//var assetsIDs string
 	var nearTrustedSensorsSmartData []st.SmartData
 	var smartDataAux st.SmartData
@@ -1190,7 +1214,7 @@ func getSmartDataBySensorsInInterval(stub shim.ChaincodeStubInterface, nearTrust
 	}
 	assetsIDs = assetsIDs[:len(assetsIDs)-1] + "]"
 	queryString := fmt.Sprintf(`{"selector":{"timestamp":{"$gt": %d},"timestamp":{"$lt": %d},"assetid":{ "$in": %s }}}`, t0, t1, assetsIDs)
-	fmt.Println("Query string: " + queryString)
+	println("Query string: " + queryString)
 	queryIterator, err := stub.GetQueryResult(queryString)
 
 	if err != nil {
@@ -1198,7 +1222,7 @@ func getSmartDataBySensorsInInterval(stub shim.ChaincodeStubInterface, nearTrust
 	}
 	duration := time.Since(tStart)
 
-	fmt.Println("JSON QUERY TIME: " + duration.String())*/
+	println("JSON QUERY TIME: " + duration.String())*/
 
 	//TESTING A MORE EFFICIENT QUERY
 	//tStart := time.Now()
@@ -1207,9 +1231,9 @@ func getSmartDataBySensorsInInterval(stub shim.ChaincodeStubInterface, nearTrust
 
 	for _, nearTrustedActiveSensor := range *nearTrustedActiveSensors {
 		startKey := "SmartData" + nearTrustedActiveSensor.MspID + nearTrustedActiveSensor.SensorID + getMaxUint64CharsStrTimestamp(t0)
-		fmt.Println("startKey: " + startKey)
+		println("startKey: " + startKey)
 		endKey := "SmartData" + nearTrustedActiveSensor.MspID + nearTrustedActiveSensor.SensorID + getMaxUint64CharsStrTimestamp(t1)
-		fmt.Println("endKey: " + endKey)
+		println("endKey: " + endKey)
 		queryIterator, err := stub.GetStateByRange(startKey, endKey)
 		queryIterators = append(queryIterators, queryIterator)
 		if err != nil {
@@ -1218,7 +1242,7 @@ func getSmartDataBySensorsInInterval(stub shim.ChaincodeStubInterface, nearTrust
 	}
 	// TEST END
 	//duration := time.Since(tStart)
-	//fmt.Println("StateByRange QUERY TIME: " + duration.String())
+	//println("StateByRange QUERY TIME: " + duration.String())
 
 	numberOfSmartDataFetched := 0
 	for _, queryIterator := range queryIterators {
@@ -1229,12 +1253,12 @@ func getSmartDataBySensorsInInterval(stub shim.ChaincodeStubInterface, nearTrust
 				return nil, err
 			}
 			nearTrustedSensorsSmartData = append(nearTrustedSensorsSmartData, smartDataAux)
-			//fmt.Printf("%+v\n", smartDataAux)
+			//printf("%+v\n", smartDataAux)
 			numberOfSmartDataFetched++
 		}
 		queryIterator.Close()
 	}
-	fmt.Printf("numberOfSmartDataFetched: %d\n", numberOfSmartDataFetched)
+	printf("numberOfSmartDataFetched: %d\n", numberOfSmartDataFetched)
 	return nearTrustedSensorsSmartData, nil
 
 }
@@ -1259,7 +1283,7 @@ func GetMSPID() (string, error) {
  @Param energyType - the source of the energy (e.g. solar, wind)
 */
 func (chaincode *EnergyChaincode) registerSellBid(stub shim.ChaincodeStubInterface, quantityKWH float64, pricePerKWH float64, energyType string) pb.Response {
-	fmt.Println("---- registerSellBid function beggining ----")
+	println("---- registerSellBid function beggining ----")
 
 	var sellerInfo st.SellerInfo
 
@@ -1288,8 +1312,8 @@ func (chaincode *EnergyChaincode) registerSellBid(stub shim.ChaincodeStubInterfa
 	}
 
 	//check if seller has already produced the amount of energy type
-	fmt.Printf("sellerInfo.EnergyToSellByType['%s']: %f\n", energyType, sellerInfo.EnergyToSellByType[energyType])
-	fmt.Printf("amountKWH: %f\n", quantityKWH)
+	printf("sellerInfo.EnergyToSellByType['%s']: %f\n", energyType, sellerInfo.EnergyToSellByType[energyType])
+	printf("amountKWH: %f\n", quantityKWH)
 	if sellerInfo.EnergyToSellByType[energyType] < quantityKWH {
 		return shim.Error("Seller does not have the indicated amount of " + energyType + " energy to sell!")
 	}
@@ -1342,7 +1366,7 @@ func (chaincode *EnergyChaincode) registerSellBid(stub shim.ChaincodeStubInterfa
  - The BuyBid is put in the World State for later validation by the Payment Company (see validateBuyBid())
 */
 func (chaincode *EnergyChaincode) registerBuyBid(stub shim.ChaincodeStubInterface, mspIDPaymentCompany string, token string, utilityMspID string, quantityKWH float64, pricePerKWH float64, energyType string) pb.Response {
-	fmt.Println("---- registerBuyBid function beggining ----")
+	println("---- registerBuyBid function beggining ----")
 
 	//check if caller is a buyer
 	err := cid.AssertAttributeValue(stub, "ou", "idemixorg")
@@ -1387,7 +1411,7 @@ func (chaincode *EnergyChaincode) registerBuyBid(stub shim.ChaincodeStubInterfac
 		return shim.Error(err.Error())
 	}
 
-	fmt.Printf("Registered BuyBid: %+v\n", buyBid)
+	printf("Registered BuyBid: %+v\n", buyBid)
 
 	return shim.Success(nil)
 
@@ -1402,7 +1426,7 @@ func (chaincode *EnergyChaincode) registerBuyBid(stub shim.ChaincodeStubInterfac
  - After the validated, the BuyBid can be finally used in the Double Auction
 */
 func (chaincode *EnergyChaincode) validateBuyBid(stub shim.ChaincodeStubInterface, token string, maxBuyBidPaymentCover float64) pb.Response {
-	fmt.Println("---- validateBuyBid function beggining ----")
+	println("---- validateBuyBid function beggining ----")
 
 	var buyBid st.BuyBid
 
@@ -1452,19 +1476,19 @@ func (chaincode *EnergyChaincode) validateBuyBid(stub shim.ChaincodeStubInterfac
 	}
 
 	//send it to auction
-	fmt.Printf("Validated BuyBid: %+v\n", buyBid)
+	printf("Validated BuyBid: %+v\n", buyBid)
 
 	return shim.Success([]byte("BuyBid of token " + token + " validated!"))
 }
 
 func (chaincode *EnergyChaincode) auction(stub shim.ChaincodeStubInterface) pb.Response {
-	//fmt.Println("---- auction function beggining ----")
+	//println("---- auction function beggining ----")
 
 	/*now := time.Now()
 	defer func() {
 		elapsed := time.Since(now)
-		fmt.Printf("auction took: ")
-		fmt.Println(elapsed)
+		printf("auction took: ")
+		println(elapsed)
 	}()*/
 
 	//get SellBids
@@ -1475,7 +1499,7 @@ func (chaincode *EnergyChaincode) auction(stub shim.ChaincodeStubInterface) pb.R
 
 	//get VALIDATED BuyBids
 	//queryString := fmt.Sprintf(`{"selector":{"validated":true}}`)
-	//fmt.Println("Query string: " + queryString)
+	//println("Query string: " + queryString)
 	//buyBidsIterator, err := stub.GetQueryResult(queryString)
 	buyBidsIterator, err := stub.GetStateByPartialCompositeKey("BuyBid", []string{"true"})
 	if err != nil {
@@ -1517,8 +1541,8 @@ func (chaincode *EnergyChaincode) auction(stub shim.ChaincodeStubInterface) pb.R
 	//match sell and buybids for each energy type
 	for energyType, sellBidsEnergyType := range sellBidsByType {
 		buyBidsEnergyType := buyBidsByType[energyType]
-		//fmt.Printf("%s energy auction sellBids: %+v\n", energyType, sellBidsEnergyType)
-		//fmt.Printf("%s energy auction buyBids: %+v\n", energyType, buyBidsEnergyType)
+		//printf("%s energy auction sellBids: %+v\n", energyType, sellBidsEnergyType)
+		//printf("%s energy auction buyBids: %+v\n", energyType, buyBidsEnergyType)
 		if len(sellBidsEnergyType) > 0 && len(buyBidsEnergyType) > 0 {
 			err := matchBuyAndSellBidsWithSameEnergyType(stub, sellBidsEnergyType, buyBidsEnergyType)
 			if err != nil {
@@ -1538,22 +1562,22 @@ func (chaincode *EnergyChaincode) auction(stub shim.ChaincodeStubInterface) pb.R
 }
 
 func matchBuyAndSellBidsWithSameEnergyType(stub shim.ChaincodeStubInterface, sellBids []st.SellBid, buyBids []st.BuyBid) error {
-	//fmt.Println("---- matchBuyAndSellBidsWithSameEnergyType function beggining ----")
+	//println("---- matchBuyAndSellBidsWithSameEnergyType function beggining ----")
 
-	//fmt.Println("")
-	//fmt.Println("---- MATCHING " + sellBids[0].EnergyType + " ENERGY BIDS ----")
-	//fmt.Println("")
+	//println("")
+	//println("---- MATCHING " + sellBids[0].EnergyType + " ENERGY BIDS ----")
+	//println("")
 	//sort SellBids in ASCENDING order
 	sort.SliceStable(sellBids[:], func(i, j int) bool {
 		return sellBids[i].PricePerKWH < sellBids[j].PricePerKWH
 	})
-	//fmt.Printf("Sorted ASCENDING sellBids: %+v\n", sellBids)
+	//printf("Sorted ASCENDING sellBids: %+v\n", sellBids)
 
 	//sort BuyBids in DESCENDING order
 	sort.SliceStable(buyBids[:], func(i, j int) bool {
 		return buyBids[i].PricePerKWH > buyBids[j].PricePerKWH
 	})
-	//fmt.Printf("Sorted DESCENDING buyBids: %+v\n", buyBids)
+	//printf("Sorted DESCENDING buyBids: %+v\n", buyBids)
 
 	//match the bids
 	i, j := 0, 0
@@ -1570,7 +1594,7 @@ func matchBuyAndSellBidsWithSameEnergyType(stub shim.ChaincodeStubInterface, sel
 		//if sellBid[i] has more energy than buyBid[j] wants to buy
 		if excessEnergyToSell > neededEnergyToBuy {
 			excessEnergyToSell -= neededEnergyToBuy
-			//fmt.Printf("BuyBid %+v\n is SATISFIED with %f KWH sold by \n SellBid %+v\n", buyBids[j], neededEnergyToBuy, sellBids[i])
+			//printf("BuyBid %+v\n is SATISFIED with %f KWH sold by \n SellBid %+v\n", buyBids[j], neededEnergyToBuy, sellBids[i])
 			energyTransactions = append(energyTransactions, instantiateEnergyTransaction(&sellBids[i], &buyBids[j], neededEnergyToBuy))
 			err = deleteBuyBidFromWorldState(stub, &buyBids[j])
 			j++
@@ -1585,7 +1609,7 @@ func matchBuyAndSellBidsWithSameEnergyType(stub shim.ChaincodeStubInterface, sel
 			//if sellBid[i] has less energy than buyBid[j] wants to buy
 		} else if excessEnergyToSell < neededEnergyToBuy {
 			neededEnergyToBuy -= excessEnergyToSell
-			//fmt.Printf("SellBid: %+v\n is SATISFIED with %f KWH bought from \n BuyBid %+v\n", sellBids[i], excessEnergyToSell, buyBids[j])
+			//printf("SellBid: %+v\n is SATISFIED with %f KWH bought from \n BuyBid %+v\n", sellBids[i], excessEnergyToSell, buyBids[j])
 			energyTransactions = append(energyTransactions, instantiateEnergyTransaction(&sellBids[i], &buyBids[j], excessEnergyToSell))
 			err = deleteSellBidFromWorldState(stub, &sellBids[i])
 			i++
@@ -1599,7 +1623,7 @@ func matchBuyAndSellBidsWithSameEnergyType(stub shim.ChaincodeStubInterface, sel
 
 			//if sellBid[i] has the exact amount of energy that buyBid[j] wants to buy
 		} else {
-			//fmt.Printf("SellBid: %+v\n AND BuyBid %+v\n  SATISFIED each other exchanging %f KWH\n", sellBids[i], buyBids[j], neededEnergyToBuy)
+			//printf("SellBid: %+v\n AND BuyBid %+v\n  SATISFIED each other exchanging %f KWH\n", sellBids[i], buyBids[j], neededEnergyToBuy)
 			energyTransactions = append(energyTransactions, instantiateEnergyTransaction(&sellBids[i], &buyBids[j], neededEnergyToBuy))
 			err = deleteBuyBidFromWorldState(stub, &buyBids[j])
 			err2 = deleteSellBidFromWorldState(stub, &sellBids[i])
@@ -1653,13 +1677,13 @@ func matchBuyAndSellBidsWithSameEnergyType(stub shim.ChaincodeStubInterface, sel
 	//save EnergyTransactions
 	err = saveEnergyTransactions(stub, &energyTransactions)
 
-	//fmt.Printf("%s EnergyTransactions: %+v\n", sellBids[0].EnergyType, energyTransactions)
+	//printf("%s EnergyTransactions: %+v\n", sellBids[0].EnergyType, energyTransactions)
 
 	return err
 }
 
 func instantiateEnergyTransaction(sellBid *st.SellBid, buyBid *st.BuyBid, energySettled float64) st.EnergyTransaction {
-	//fmt.Println("---- instatiateEnergyTransaction function beggining ----")
+	//println("---- instatiateEnergyTransaction function beggining ----")
 
 	energyTransaction := st.EnergyTransaction{
 		MspIDSeller:         sellBid.MspIDSeller,
@@ -1699,7 +1723,7 @@ func deleteBuyBidFromWorldState(stub shim.ChaincodeStubInterface, buyBid *st.Buy
 }
 
 func updateSellBid(stub shim.ChaincodeStubInterface, sellBid st.SellBid) error {
-	//fmt.Println("---- updateSellBid function beggining ----")
+	//println("---- updateSellBid function beggining ----")
 
 	key, err := stub.CreateCompositeKey("SellBid", []string{sellBid.MspIDSeller, sellBid.SellerID})
 	if err != nil {
@@ -1719,7 +1743,7 @@ func updateSellBid(stub shim.ChaincodeStubInterface, sellBid st.SellBid) error {
 }
 
 func updateBuyBid(stub shim.ChaincodeStubInterface, buyBid st.BuyBid) error {
-	//fmt.Println("---- updateBuyBid function beggining ----")
+	//println("---- updateBuyBid function beggining ----")
 
 	var validated string
 	if buyBid.Validated {
@@ -1745,7 +1769,7 @@ func updateBuyBid(stub shim.ChaincodeStubInterface, buyBid st.BuyBid) error {
 }
 
 func saveEnergyTransactions(stub shim.ChaincodeStubInterface, energyTransactions *[]st.EnergyTransaction) error {
-	//fmt.Println("---- saveEnergyTransactions function beggining ----")
+	//println("---- saveEnergyTransactions function beggining ----")
 
 	sellBidEnergyTrans := make(map[string]st.SellBidEnergyTransactions)
 
@@ -1780,7 +1804,7 @@ func saveEnergyTransactions(stub shim.ChaincodeStubInterface, energyTransactions
 }
 
 func (chaincode *EnergyChaincode) transactionsEnergyQuantityFromPaymentToken(stub shim.ChaincodeStubInterface, mspIDPaymentCompany string, token string) pb.Response {
-	fmt.Println("---- transactionsEnergyQuantityFromPaymentToken function beggining ----")
+	println("---- transactionsEnergyQuantityFromPaymentToken function beggining ----")
 
 	energyTransactionsIterator, err := stub.GetStateByPartialCompositeKey("EnergyTransaction", []string{mspIDPaymentCompany, token})
 	if err != nil {
@@ -1805,7 +1829,7 @@ func (chaincode *EnergyChaincode) transactionsEnergyQuantityFromPaymentToken(stu
 }
 
 func (chaincode *EnergyChaincode) getEnergyTransactionsFromPaymentToken(stub shim.ChaincodeStubInterface, mspIDPaymentCompany string, token string) pb.Response {
-	fmt.Println("---- getEnergyTransactionsFromPaymentToken function beggining ----")
+	println("---- getEnergyTransactionsFromPaymentToken function beggining ----")
 
 	err := cid.AssertAttributeValue(stub, "energy.utility", "true")
 	if err != nil {
@@ -1831,7 +1855,7 @@ func (chaincode *EnergyChaincode) getEnergyTransactionsFromPaymentToken(stub shi
 		//energyTransactionsJSON = energyTransactionsJSON[:len(energyTransactionsJSON)] + string(queryResult.Value) + "," // WHEN WE USED JSON
 		proto.Unmarshal(queryResult.Value, &energyTransactionAux)
 		transactionStr := protojson.Format(proto.MessageReflect(&energyTransactionAux).Interface())
-		fmt.Println("transactionStr: " + transactionStr)
+		println("transactionStr: " + transactionStr)
 		energyTransactionsJSON = energyTransactionsJSON[:len(energyTransactionsJSON)] + transactionStr + ","
 	}
 
@@ -1841,7 +1865,7 @@ func (chaincode *EnergyChaincode) getEnergyTransactionsFromPaymentToken(stub shi
 }
 
 func (chaincode *EnergyChaincode) getEnergyTransactionsFromSellBidNumbers(stub shim.ChaincodeStubInterface, sellBidNumbers []string) pb.Response {
-	fmt.Println("---- getEnergyTransactionsFromSellBidNumbers function beggining ----")
+	println("---- getEnergyTransactionsFromSellBidNumbers function beggining ----")
 
 	err := cid.AssertAttributeValue(stub, "energy.seller", "true")
 	if err != nil {
@@ -1869,7 +1893,7 @@ func (chaincode *EnergyChaincode) getEnergyTransactionsFromSellBidNumbers(stub s
 }
 
 func (chaincode *EnergyChaincode) getEnergyTransactionsFromFullSellBidKey(stub shim.ChaincodeStubInterface, mspIDSeller string, sellerID string, sellBidNumberStr string) pb.Response {
-	fmt.Println("---- getEnergyTransactionsFromFullSellBidKey function beggining ----")
+	println("---- getEnergyTransactionsFromFullSellBidKey function beggining ----")
 
 	key, _ := stub.CreateCompositeKey("SellBidEnergyTransactions", []string{mspIDSeller, sellerID, sellBidNumberStr})
 	sellBidEnergyTransactionsBytes, err := stub.GetState(key)
@@ -1895,7 +1919,7 @@ func (chaincode *EnergyChaincode) getEnergyTransactionsFromFullSellBidKey(stub s
 		//energyTransactionsJSON = energyTransactionsJSON[:len(energyTransactionsJSON)] + string(energyTransactionsBytes) + ","  // WHEN WE USED JSON
 		proto.Unmarshal(energyTransactionsBytes, &energyTransactionAux)
 		transactionStr := protojson.Format(proto.MessageReflect(&energyTransactionAux).Interface())
-		fmt.Println("transactionStr: " + transactionStr)
+		println("transactionStr: " + transactionStr)
 		energyTransactionsJSON = energyTransactionsJSON[:len(energyTransactionsJSON)] + transactionStr + ","
 	}
 	energyTransactionsJSON = "[" + energyTransactionsJSON[:len(energyTransactionsJSON)-1] + "]"
@@ -1905,7 +1929,7 @@ func (chaincode *EnergyChaincode) getEnergyTransactionsFromFullSellBidKey(stub s
 
 //talvez deletar
 func (chaincode *EnergyChaincode) getEnergyTransactionsFromSellerAfterSellBidNumber(stub shim.ChaincodeStubInterface, mspIDSeller string, sellerID string, initialSellBidNumber uint64) pb.Response {
-	fmt.Println("---- getEnergyTransactionsFromSellerAfterSellBidNumber function beggining ----")
+	println("---- getEnergyTransactionsFromSellerAfterSellBidNumber function beggining ----")
 
 	var sellerInfo st.SellerInfo
 	key, _ := stub.CreateCompositeKey("SellerInfo", []string{mspIDSeller, sellerID})
@@ -1945,25 +1969,25 @@ func (chaincode *EnergyChaincode) getCallerIDAndCallerMspID(stub shim.ChaincodeS
 		return shim.Error(err.Error())
 	}
 
-	fmt.Println("Caller ID: " + callerID)
-	fmt.Println("Caller MSP ID: " + mspID)
+	println("Caller ID: " + callerID)
+	println("Caller MSP ID: " + mspID)
 
 	return shim.Success([]byte("Caller ID: " + callerID + "\nCaller MSP ID: " + mspID))
 }
 
 func (chaincode *EnergyChaincode) auctionSortedQueries(stub shim.ChaincodeStubInterface) pb.Response {
-	//fmt.Println("---- auctionSortedQueries function beggining ----")
+	//println("---- auctionSortedQueries function beggining ----")
 
 	/*now := time.Now()
 	defer func() {
 		elapsed := time.Since(now)
-		fmt.Printf("auctionSortedQueries took: ")
-		fmt.Println(elapsed)
+		printf("auctionSortedQueries took: ")
+		println(elapsed)
 	}()*/
 
 	//get SellBids
 	queryString := fmt.Sprintf(`{"selector":{"issellbid":true}, "sort": [{"priceperkwh": "asc"}]}`)
-	//fmt.Println("Query string: " + queryString)
+	//println("Query string: " + queryString)
 	sellBidsIterator, err := stub.GetQueryResult(queryString)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -1971,7 +1995,7 @@ func (chaincode *EnergyChaincode) auctionSortedQueries(stub shim.ChaincodeStubIn
 
 	//get VALIDATED BuyBids
 	queryString = fmt.Sprintf(`{"selector":{"validated":true}, "sort": [{"priceperkwh": "desc"}]}`)
-	//fmt.Println("Query string: " + queryString)
+	//println("Query string: " + queryString)
 	buyBidsIterator, err := stub.GetQueryResult(queryString)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -2012,8 +2036,8 @@ func (chaincode *EnergyChaincode) auctionSortedQueries(stub shim.ChaincodeStubIn
 	//match sell and buybids for each energy type
 	for energyType, sellBidsEnergyType := range sellBidsByType {
 		buyBidsEnergyType := buyBidsByType[energyType]
-		//fmt.Printf("%s energy auction sellBids: %+v\n", energyType, sellBidsEnergyType)
-		//fmt.Printf("%s energy auction buyBids: %+v\n", energyType, buyBidsEnergyType)
+		//printf("%s energy auction sellBids: %+v\n", energyType, sellBidsEnergyType)
+		//printf("%s energy auction buyBids: %+v\n", energyType, buyBidsEnergyType)
 		if len(sellBidsEnergyType) > 0 && len(buyBidsEnergyType) > 0 {
 			err := matchBuyAndSellBidsWithSameEnergyTypeSortedQueries(stub, sellBidsEnergyType, buyBidsEnergyType)
 			if err != nil {
@@ -2029,11 +2053,11 @@ func (chaincode *EnergyChaincode) auctionSortedQueries(stub shim.ChaincodeStubIn
 }
 
 func matchBuyAndSellBidsWithSameEnergyTypeSortedQueries(stub shim.ChaincodeStubInterface, sellBids []st.SellBid, buyBids []st.BuyBid) error {
-	//fmt.Println("---- matchBuyAndSellBidsWithSameEnergyType function beggining ----")
+	//println("---- matchBuyAndSellBidsWithSameEnergyType function beggining ----")
 
-	//fmt.Println("")
-	//fmt.Println("---- MATCHING " + sellBids[0].EnergyType + " ENERGY BIDS ----")
-	//fmt.Println("")
+	//println("")
+	//println("---- MATCHING " + sellBids[0].EnergyType + " ENERGY BIDS ----")
+	//println("")
 
 	//match the bids
 	i, j := 0, 0
@@ -2050,7 +2074,7 @@ func matchBuyAndSellBidsWithSameEnergyTypeSortedQueries(stub shim.ChaincodeStubI
 		//if sellBid[i] has more energy than buyBid[j] wants to buy
 		if excessEnergyToSell > neededEnergyToBuy {
 			excessEnergyToSell -= neededEnergyToBuy
-			//fmt.Printf("BuyBid %+v\n is SATISFIED with %f KWH sold by \n SellBid %+v\n", buyBids[j], neededEnergyToBuy, sellBids[i])
+			//printf("BuyBid %+v\n is SATISFIED with %f KWH sold by \n SellBid %+v\n", buyBids[j], neededEnergyToBuy, sellBids[i])
 			energyTransactions = append(energyTransactions, instantiateEnergyTransaction(&sellBids[i], &buyBids[j], neededEnergyToBuy))
 			err = deleteBuyBidFromWorldState(stub, &buyBids[j])
 			j++
@@ -2065,7 +2089,7 @@ func matchBuyAndSellBidsWithSameEnergyTypeSortedQueries(stub shim.ChaincodeStubI
 			//if sellBid[i] has less energy than buyBid[j] wants to buy
 		} else if excessEnergyToSell < neededEnergyToBuy {
 			neededEnergyToBuy -= excessEnergyToSell
-			//fmt.Printf("SellBid: %+v\n is SATISFIED with %f KWH bought from \n BuyBid %+v\n", sellBids[i], excessEnergyToSell, buyBids[j])
+			//printf("SellBid: %+v\n is SATISFIED with %f KWH bought from \n BuyBid %+v\n", sellBids[i], excessEnergyToSell, buyBids[j])
 			energyTransactions = append(energyTransactions, instantiateEnergyTransaction(&sellBids[i], &buyBids[j], excessEnergyToSell))
 			err = deleteSellBidFromWorldState(stub, &sellBids[i])
 			i++
@@ -2079,7 +2103,7 @@ func matchBuyAndSellBidsWithSameEnergyTypeSortedQueries(stub shim.ChaincodeStubI
 
 			//if sellBid[i] has the exact amount of energy that buyBid[j] wants to buy
 		} else {
-			//fmt.Printf("SellBid: %+v\n AND BuyBid %+v\n  SATISFIED each other exchanging %f KWH\n", sellBids[i], buyBids[j], neededEnergyToBuy)
+			//printf("SellBid: %+v\n AND BuyBid %+v\n  SATISFIED each other exchanging %f KWH\n", sellBids[i], buyBids[j], neededEnergyToBuy)
 			energyTransactions = append(energyTransactions, instantiateEnergyTransaction(&sellBids[i], &buyBids[j], neededEnergyToBuy))
 			err = deleteBuyBidFromWorldState(stub, &buyBids[j])
 			err2 = deleteSellBidFromWorldState(stub, &sellBids[i])
@@ -2133,7 +2157,7 @@ func matchBuyAndSellBidsWithSameEnergyTypeSortedQueries(stub shim.ChaincodeStubI
 	//save EnergyTransactions
 	err = saveEnergyTransactions(stub, &energyTransactions)
 
-	//fmt.Printf("%s EnergyTransactions: %+v\n", sellBids[0].EnergyType, energyTransactions)
+	//printf("%s EnergyTransactions: %+v\n", sellBids[0].EnergyType, energyTransactions)
 
 	return err
 }
@@ -2141,7 +2165,7 @@ func matchBuyAndSellBidsWithSameEnergyTypeSortedQueries(stub shim.ChaincodeStubI
 // Init initializes the chaincode
 func (chaincode *EnergyChaincode) Init(stub shim.ChaincodeStubInterface) pb.Response {
 
-	fmt.Println("energy Init")
+	println("energy Init")
 
 	//
 	// Demonstrate the use of Attribute-Based Access Control (ABAC) by checking
@@ -2161,7 +2185,7 @@ func (chaincode *EnergyChaincode) Init(stub shim.ChaincodeStubInterface) pb.Resp
 
 //Invoke calls a function using the "peer chaincode invoke" command
 func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Println("energy Invoke")
+	println("energy Invoke")
 	function, args := stub.GetFunctionAndParameters()
 
 	if functionPointer, ok := functionMap[function]; ok {
@@ -2173,8 +2197,9 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 			functionStats.NCalls++
 			functionStats.AvarageExecTimeMs = (n/(n+1))*functionStats.AvarageExecTimeMs +
 				float64(elapsed.Milliseconds())/(n+1)
-			fmt.Printf("Function: %s took \n", function)
-			fmt.Println(elapsed)
+			averageFunctionTime[function] = functionStats
+			printf("Function: %s took \n", function)
+			println(elapsed)
 		}()
 		return functionPointer(stub, args)
 	}
@@ -2347,6 +2372,13 @@ func main() {
 	averageFunctionTime = make(map[string]FunctionStats)
 
 	functionMap = map[string]func(shim.ChaincodeStubInterface, []string) pb.Response{
+		"getAverageFunctionTimes": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			return chaincode.getAverageFunctionTimes()
+		},
+		"setPrint": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
+			parsedBool, _ := strconv.ParseBool(args[0])
+			return chaincode.setPrint(parsedBool)
+		},
 		"sensorDeclareActive": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 			return chaincode.sensorDeclareActive(stub)
 		},
@@ -2545,13 +2577,13 @@ func main() {
 
 	err := shim.Start(chaincode)
 	if err != nil {
-		fmt.Printf("Error starting Simple chaincode: %s", err)
+		printf("Error starting Simple chaincode: %s", err)
 	}
 }
 
 /////////////////////////////////// TESTING FUNCTIONS ///////////////////////////////////////////
 func (chaincode *EnergyChaincode) registerMultipleSellers(stub shim.ChaincodeStubInterface, nSellers int) pb.Response {
-	fmt.Println("---- registerMultipleSellers function beggining ----")
+	println("---- registerMultipleSellers function beggining ----")
 	for i := 0; i < nSellers; i++ {
 		chaincode.registerSeller(stub, "seller"+strconv.Itoa(i), "metermsp", "meter"+strconv.Itoa(i), 2, 2)
 	}
@@ -2559,7 +2591,7 @@ func (chaincode *EnergyChaincode) registerMultipleSellers(stub shim.ChaincodeStu
 }
 
 func (chaincode *EnergyChaincode) registerSellBidWithIndex(stub shim.ChaincodeStubInterface, amountKWH float64, pricePerKWH float64, energyType string, sellBidNum uint64) pb.Response {
-	fmt.Println("---- registerSellBidWithIndex function beggining ----")
+	println("---- registerSellBidWithIndex function beggining ----")
 
 	//get seller MSPID and their ID
 	mspIDSeller, err := cid.GetMSPID(stub)
@@ -2592,7 +2624,7 @@ func (chaincode *EnergyChaincode) registerSellBidWithIndex(stub shim.ChaincodeSt
 }
 
 func (chaincode *EnergyChaincode) registerMultipleSellBids(stub shim.ChaincodeStubInterface, nSellBids uint64, minAmountKWH float64, maxAmountKWH float64, minPricePerKWH float64, maxPricePerKWH float64, energyType string) pb.Response {
-	fmt.Println("---- registerMultipleSellBids function beggining ----")
+	println("---- registerMultipleSellBids function beggining ----")
 	for i := uint64(0); i < nSellBids; i++ {
 		randomAmountKWH := minAmountKWH + rand.Float64()*(maxAmountKWH-minAmountKWH)
 		randomPricePerKWH := minPricePerKWH + rand.Float64()*(maxPricePerKWH-minPricePerKWH)
@@ -2612,7 +2644,7 @@ func (chaincode *EnergyChaincode) registerMultipleSellBids(stub shim.ChaincodeSt
 }
 
 func (chaincode *EnergyChaincode) registerMultipleBuyBids(stub shim.ChaincodeStubInterface, nBuyBids int, mspIDPaymentCompany string, minAmountKWH float64, maxAmountKWH float64, minPricePerKWH float64, maxPricePerKWH float64, energyType string) pb.Response {
-	fmt.Println("---- registerMultipleBuyBids function beggining ----")
+	println("---- registerMultipleBuyBids function beggining ----")
 	for i := 0; i < nBuyBids; i++ {
 		randomAmountKWH := minAmountKWH + rand.Float64()*(maxAmountKWH-minAmountKWH)
 		randomPricePerKWH := minPricePerKWH + rand.Float64()*(maxPricePerKWH-minPricePerKWH)
@@ -2626,7 +2658,7 @@ func (chaincode *EnergyChaincode) registerMultipleBuyBids(stub shim.ChaincodeStu
 }
 
 func (chaincode *EnergyChaincode) validateMultipleBuyBids(stub shim.ChaincodeStubInterface, nBuyBids int) pb.Response {
-	fmt.Println("---- validateMultipleBuyBids function beggining ----")
+	println("---- validateMultipleBuyBids function beggining ----")
 	for i := 0; i < nBuyBids; i++ {
 		token := "tokentest" + strconv.Itoa(i)
 		response := chaincode.validateBuyBid(stub, token, 1000000)
@@ -2638,10 +2670,10 @@ func (chaincode *EnergyChaincode) validateMultipleBuyBids(stub shim.ChaincodeStu
 }
 
 func (chaincode *EnergyChaincode) clearSellBids(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Println("---- clearSellBids function beggining ----")
+	println("---- clearSellBids function beggining ----")
 	//get SellBids
 	queryString := fmt.Sprintf(`{"selector":{"issellbid":true}}`)
-	fmt.Println("Query string: " + queryString)
+	println("Query string: " + queryString)
 	sellBidsIterator, err := stub.GetQueryResult(queryString)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -2662,10 +2694,10 @@ func (chaincode *EnergyChaincode) clearSellBids(stub shim.ChaincodeStubInterface
 }
 
 func (chaincode *EnergyChaincode) clearBuyBids(stub shim.ChaincodeStubInterface) pb.Response {
-	fmt.Println("---- clearBuyBids function beggining ----")
+	println("---- clearBuyBids function beggining ----")
 	//get VALIDATED BuyBids
 	queryString := fmt.Sprintf(`{"selector":{"$or": [{"validated":true},{"validated":false}]}}`)
-	fmt.Println("Query string: " + queryString)
+	println("Query string: " + queryString)
 	buyBidsIterator, err := stub.GetQueryResult(queryString)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -2686,7 +2718,7 @@ func (chaincode *EnergyChaincode) clearBuyBids(stub shim.ChaincodeStubInterface)
 }
 
 func (chaincode *EnergyChaincode) printDataQuantityByPartialCompositeKey(stub shim.ChaincodeStubInterface, objectType string, keys []string) pb.Response {
-	fmt.Println("---- printDataQuantityByPartialCompositeKey function beggining ----")
+	println("---- printDataQuantityByPartialCompositeKey function beggining ----")
 
 	dataIterator, err := stub.GetStateByPartialCompositeKey(objectType, keys)
 	if err != nil {
@@ -2701,7 +2733,7 @@ func (chaincode *EnergyChaincode) printDataQuantityByPartialCompositeKey(stub sh
 			return shim.Error(err.Error())
 		}
 		proto.Unmarshal(queryResult.Value, &messageAux)
-		fmt.Println(messageAux.String())
+		println(messageAux.String())
 		dataQuantity++
 	}
 
@@ -2709,7 +2741,7 @@ func (chaincode *EnergyChaincode) printDataQuantityByPartialCompositeKey(stub sh
 }
 
 func (chaincode *EnergyChaincode) deleteDataByPartialCompositeKey(stub shim.ChaincodeStubInterface, objectType string, keys []string) pb.Response {
-	fmt.Println("---- deleteDataByPartialCompositeKey function beggining ----")
+	println("---- deleteDataByPartialCompositeKey function beggining ----")
 
 	dataIterator, err := stub.GetStateByPartialCompositeKey(objectType, keys)
 	if err != nil {
@@ -2733,7 +2765,7 @@ func (chaincode *EnergyChaincode) deleteDataByPartialCompositeKey(stub shim.Chai
 }
 
 func (chaincode *EnergyChaincode) printDataQuantityByPartialSimpleKey(stub shim.ChaincodeStubInterface, partialSimpleKey string) pb.Response {
-	fmt.Println("---- printDataQuantityByPartialSimpleKey function beggining ----")
+	println("---- printDataQuantityByPartialSimpleKey function beggining ----")
 
 	dataIterator, err := stub.GetStateByRange(partialSimpleKey, "")
 	if err != nil {
@@ -2748,7 +2780,7 @@ func (chaincode *EnergyChaincode) printDataQuantityByPartialSimpleKey(stub shim.
 			return shim.Error(err.Error())
 		}
 		proto.Unmarshal(queryResult.Value, &messageAux)
-		fmt.Println(messageAux.String())
+		println(messageAux.String())
 		dataQuantity++
 	}
 
@@ -2756,7 +2788,7 @@ func (chaincode *EnergyChaincode) printDataQuantityByPartialSimpleKey(stub shim.
 }
 
 func (chaincode *EnergyChaincode) deleteDataByPartialSimpleKey(stub shim.ChaincodeStubInterface, partialSimpleKey string) pb.Response {
-	fmt.Println("---- deleteDataByPartialSimpleKey function beggining ----")
+	println("---- deleteDataByPartialSimpleKey function beggining ----")
 
 	dataIterator, err := stub.GetStateByRange(partialSimpleKey, "")
 	if err != nil {
@@ -2786,11 +2818,11 @@ func getDatabaseType() string {
 }
 
 func (chaincode *EnergyChaincode) measureSpeedSmartDataQuery(stub shim.ChaincodeStubInterface, repeatQuery int, nearTrustedActiveSensors *[]st.ActiveSensor, t0 uint64, t1 uint64) pb.Response {
-	fmt.Println("---- measureSpeedSmartDataQuery function beggining ----")
+	println("---- measureSpeedSmartDataQuery function beggining ----")
 
 	dbType := getDatabaseType()
 
-	fmt.Println("dbType: " + dbType)
+	println("dbType: " + dbType)
 
 	if dbType != "" {
 
@@ -2820,9 +2852,9 @@ func (chaincode *EnergyChaincode) measureSpeedSmartDataQuery(stub shim.Chaincode
 			}
 			queryIterator.Close()
 		}
-		fmt.Printf("numberOfSmartDataFetched: %d\n", numberOfSmartDataFetched)
+		printf("numberOfSmartDataFetched: %d\n", numberOfSmartDataFetched)
 
-		fmt.Printf("%s StateByRange QUERY TIME: %s for %d database queries\n", dbType, duration.String(), repeatQuery)
+		printf("%s StateByRange QUERY TIME: %s for %d database queries\n", dbType, duration.String(), repeatQuery)
 
 		if dbType == "CouchDB" {
 
@@ -2836,7 +2868,7 @@ func (chaincode *EnergyChaincode) measureSpeedSmartDataQuery(stub shim.Chaincode
 				//assetsIDs = assetsIDs[:len(assetsIDs)-1] + "]"
 				//
 				//queryString := fmt.Sprintf(`{"selector":{"timestamp":{"$gt": %d},"timestamp":{"$lt": %d},"assetid":{ "$in": %s }}}`, t0, t1, assetsIDs)
-				//fmt.Println("Query string: " + queryString)
+				//println("Query string: " + queryString)
 
 				for _, nearTrustedActiveSensor := range *nearTrustedActiveSensors {
 					assetID := nearTrustedActiveSensor.MspID + nearTrustedActiveSensor.SensorID
@@ -2851,7 +2883,7 @@ func (chaincode *EnergyChaincode) measureSpeedSmartDataQuery(stub shim.Chaincode
 
 			duration := time.Since(tStart)
 
-			fmt.Printf("%s JSON QUERY TIME: %s for %d database queries\n", dbType, duration.String(), repeatQuery)
+			printf("%s JSON QUERY TIME: %s for %d database queries\n", dbType, duration.String(), repeatQuery)
 		}
 
 	} else {
@@ -2863,7 +2895,7 @@ func (chaincode *EnergyChaincode) measureSpeedSmartDataQuery(stub shim.Chaincode
 }
 
 func (chaincode *EnergyChaincode) measureGetSellerInfoRelatedToSmartMeter(stub shim.ChaincodeStubInterface, repeatQuery int, meterMspID string, meterID string) (st.SellerInfo, error) {
-	fmt.Println("---- measureGetSellerInfoRelatedToSmartMeter function beggining ----")
+	println("---- measureGetSellerInfoRelatedToSmartMeter function beggining ----")
 
 	var sellerInfo st.SellerInfo
 	var meterSeller st.MeterSeller
@@ -2871,7 +2903,7 @@ func (chaincode *EnergyChaincode) measureGetSellerInfoRelatedToSmartMeter(stub s
 
 	dbType := getDatabaseType()
 
-	fmt.Println("dbType: " + dbType)
+	println("dbType: " + dbType)
 
 	if dbType != "" {
 
@@ -2899,7 +2931,7 @@ func (chaincode *EnergyChaincode) measureGetSellerInfoRelatedToSmartMeter(stub s
 		}
 
 		duration := time.Since(tStart)
-		fmt.Printf("%s getSellerInfoRelatedToSmartMeter with MeterSeller struct QUERY TIME: %s for %d database queries\n", dbType, duration.String(), repeatQuery)
+		printf("%s getSellerInfoRelatedToSmartMeter with MeterSeller struct QUERY TIME: %s for %d database queries\n", dbType, duration.String(), repeatQuery)
 
 		if dbType == "CouchDB" {
 			tStart := time.Now()
@@ -2924,7 +2956,7 @@ func (chaincode *EnergyChaincode) measureGetSellerInfoRelatedToSmartMeter(stub s
 			}
 
 			duration := time.Since(tStart)
-			fmt.Printf("%s getSellerInfoRelatedToSmartMeter with JSON QUERY TIME: %s for %d database queries\n", dbType, duration.String(), repeatQuery)
+			printf("%s getSellerInfoRelatedToSmartMeter with JSON QUERY TIME: %s for %d database queries\n", dbType, duration.String(), repeatQuery)
 		}
 	}
 
@@ -2932,11 +2964,11 @@ func (chaincode *EnergyChaincode) measureGetSellerInfoRelatedToSmartMeter(stub s
 }
 
 func (chaincode *EnergyChaincode) measureTimeDifferentAuctions(stub shim.ChaincodeStubInterface, repeatQuery int) pb.Response {
-	fmt.Println("---- measureTimeDifferentAuctions function beggining ----")
+	println("---- measureTimeDifferentAuctions function beggining ----")
 
 	dbType := getDatabaseType()
 
-	fmt.Println("dbType: " + dbType)
+	println("dbType: " + dbType)
 
 	if dbType != "" {
 
@@ -2950,7 +2982,7 @@ func (chaincode *EnergyChaincode) measureTimeDifferentAuctions(stub shim.Chainco
 		}
 
 		duration := time.Since(tStart)
-		fmt.Printf("%s auction with chaincode sorting TIME: %s for %d auctions\n", dbType, duration.String(), repeatQuery)
+		printf("%s auction with chaincode sorting TIME: %s for %d auctions\n", dbType, duration.String(), repeatQuery)
 
 		if dbType == "CouchDB" {
 			tStart := time.Now()
@@ -2963,7 +2995,7 @@ func (chaincode *EnergyChaincode) measureTimeDifferentAuctions(stub shim.Chainco
 			}
 
 			duration := time.Since(tStart)
-			fmt.Printf("%s auctionSortedQueries with CouchDB sorting TIME: %s for %d auctions\n", dbType, duration.String(), repeatQuery)
+			printf("%s auctionSortedQueries with CouchDB sorting TIME: %s for %d auctions\n", dbType, duration.String(), repeatQuery)
 		}
 	}
 	return shim.Error("Time test only")
@@ -2977,7 +3009,7 @@ func (chaincode *EnergyChaincode) testWorldStateLogic(stub shim.ChaincodeStubInt
 		return shim.Error(err.Error())
 	}
 
-	fmt.Println(testeBytes)
+	println(testeBytes)
 	err = stub.DelState(key)
 	if err != nil {
 		return shim.Error(err.Error())
@@ -2994,7 +3026,7 @@ func (chaincode *EnergyChaincode) testWorldStateLogic(stub shim.ChaincodeStubInt
 /////////////////////////////// TEST FUNCTIONS BYPASSING cid.GetID() to avoid generating thousands of x509 certificates ///////////////////////////////////////////////
 
 func (chaincode *EnergyChaincode) sensorDeclareActiveTestContext(stub shim.ChaincodeStubInterface, sensorID string) pb.Response {
-	fmt.Println("---- sensorDeclareActiveTestContext function beggining ----")
+	println("---- sensorDeclareActiveTestContext function beggining ----")
 
 	//check if caller is a sensor
 	err := cid.AssertAttributeValue(stub, "energy.sensor", "true")
@@ -3013,9 +3045,9 @@ func (chaincode *EnergyChaincode) sensorDeclareActiveTestContext(stub shim.Chain
 		return shim.Error(err.Error())
 	}
 
-	fmt.Println("Key: " + key)
-	fmt.Println(fmt.Sprintf("Key (hex): %x", key))
-	fmt.Println("State: " + string(isActive))
+	println("Key: " + key)
+	println(fmt.Sprintf("Key (hex): %x", key))
+	println("State: " + string(isActive))
 
 	if isActive == nil && err == nil {
 		//setting sensor to ACTIVE
@@ -3055,13 +3087,13 @@ func (chaincode *EnergyChaincode) sensorDeclareActiveTestContext(stub shim.Chain
 }
 
 func (chaincode *EnergyChaincode) publishSensorDataTestContext(stub shim.ChaincodeStubInterface, sensorID string, version int8, unit uint32, timestamp uint64, value float64, e uint8, confidence uint8, dev uint32) pb.Response {
-	fmt.Println("---- publishSensorDataTestContext function beggining ----")
+	println("---- publishSensorDataTestContext function beggining ----")
 
 	//verify if data is still valid based on timestamp
 	currentTime := uint64(time.Now().Unix())
 	if currentTime > timestamp+acceptedDelay {
 		//return shim.Error("The data timestamp is too old!")
-		fmt.Println("The data timestamp is too old!")
+		println("The data timestamp is too old!")
 	}
 
 	//check if caller is a sensor
@@ -3115,7 +3147,7 @@ func (chaincode *EnergyChaincode) publishSensorDataTestContext(stub shim.Chainco
 }
 
 func (chaincode *EnergyChaincode) registerSellerTestContext(stub shim.ChaincodeStubInterface, sellerID string, windTurbinesNumber uint64, solarPanelsNumber uint64) pb.Response {
-	fmt.Println("---- registerSellerTestContext function beggining ----")
+	println("---- registerSellerTestContext function beggining ----")
 
 	//test if timestamp is recent enough comparing with the transaction creation timestamp
 	timestampStruct, err := stub.GetTxTimestamp()
@@ -3167,7 +3199,7 @@ func (chaincode *EnergyChaincode) registerSellerTestContext(stub shim.ChaincodeS
 }
 
 func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.ChaincodeStubInterface, sellerID string, t0 uint64, t1 uint64, energyByTypeGeneratedKWH map[string]float64) pb.Response {
-	fmt.Println("---- publishEnergyGenerationTestContext function beggining ----")
+	println("---- publishEnergyGenerationTestContext function beggining ----")
 
 	//test if t0 is greater than t1
 	if t0 >= t1 {
@@ -3175,8 +3207,8 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 	}
 
 	//test if t1 is greater or equal NOW
-	fmt.Printf("t1: %d\n", t1)
-	fmt.Printf("Current timestamp: %d\n", uint64(time.Now().Unix()))
+	printf("t1: %d\n", t1)
+	printf("Current timestamp: %d\n", uint64(time.Now().Unix()))
 	if t1 > uint64(time.Now().Unix()) {
 		return shim.Error("t1 MUST be less or equal than the CURRENT TIME")
 	}
@@ -3184,8 +3216,8 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 	//get Meter MSP and MeterID
 	sellerMspID, err := cid.GetMSPID(stub)
 
-	fmt.Println("Seller MSP ID: " + sellerMspID)
-	fmt.Println("Seller ID: " + sellerID)
+	println("Seller MSP ID: " + sellerMspID)
+	println("Seller ID: " + sellerID)
 
 	//get SellerInfo
 	sellerInfo, err := getSellerInfo(stub, sellerMspID, sellerID)
@@ -3193,7 +3225,7 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 	if err != nil {
 		return shim.Error(err.Error())
 	}
-	fmt.Printf("sellerInfo: %+v\n", sellerInfo)
+	printf("sellerInfo: %+v\n", sellerInfo)
 
 	//test seller is not trying to generate energy twice for the same time interval
 	if t0 < sellerInfo.LastGenerationTimestamp || t1 < sellerInfo.LastGenerationTimestamp {
@@ -3215,42 +3247,42 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 	x, err := strconv.Atoi(xCert)
 	y, err := strconv.Atoi(yCert)
 	z, err := strconv.Atoi(zCert)
-	fmt.Println(x)
-	fmt.Println(y)
-	fmt.Println(z)
+	println(x)
+	println(y)
+	println(z)
 
 	//get Active Sensors
 	_, activeSensorsDataList, err := getActiveSensorsList(stub, "")
 
-	fmt.Printf("Active Sensors Data List %+v\n", activeSensorsDataList)
+	printf("Active Sensors Data List %+v\n", activeSensorsDataList)
 	//definir criterios de aceitacao. EX: 3 organizacoes precisam ter sensores a distancia X
 	//usar X, Y e Z para calcular a distancia
 	var nearActiveSensorsList []st.ActiveSensor
 
 	for _, activeSensorData := range activeSensorsDataList {
 		distanceBetweenSensorAndGenerator := math.Sqrt(math.Pow(float64(activeSensorData.X-int32(x)), 2) + math.Pow(float64(activeSensorData.Y-int32(y)), 2))
-		fmt.Printf("distanceBetweenSensorAndGenerator: %f\n", distanceBetweenSensorAndGenerator)
-		fmt.Printf("activeSensorData.Radius: %f\n", activeSensorData.Radius)
+		printf("distanceBetweenSensorAndGenerator: %f\n", distanceBetweenSensorAndGenerator)
+		printf("activeSensorData.Radius: %f\n", activeSensorData.Radius)
 		if distanceBetweenSensorAndGenerator <= activeSensorData.Radius {
 			nearActiveSensorsList = append(nearActiveSensorsList, activeSensorData)
 		}
 	}
 
-	fmt.Printf("nearActiveSensorsList: %+v\n", nearActiveSensorsList)
+	printf("nearActiveSensorsList: %+v\n", nearActiveSensorsList)
 	//chamar alguma funcao que puxe do banco de dados os criterios de cada validador (EXECUTAR DE ACORDO COM A ORGANIZACAO A QUAL O PEER EXECUTANDO PERTENCE)
 	peerOrg, err := GetMSPID()
-	fmt.Println("Peer executing MSP: " + peerOrg)
+	println("Peer executing MSP: " + peerOrg)
 
 	//mspTrustedSensors, _, err := getMspTrustedSensorsMap(stub, peerOrg)
 	allMspsTrustedSensorsMaps, _ := getAllMspsTrustedSensorsMaps(stub)
 	mspTrustedSensors := allMspsTrustedSensorsMaps[peerOrg]
 
-	fmt.Printf("mspTrustedSensors: %+v\n", mspTrustedSensors)
+	printf("mspTrustedSensors: %+v\n", mspTrustedSensors)
 
 	var nearTrustedActiveSensors []st.ActiveSensor
 
 	/*for _, nearActiveSensor := range nearActiveSensorsList {
-		fmt.Printf("nearActiveSensor: %+v\n Trusted: %t\n", nearActiveSensor, mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID])
+		printf("nearActiveSensor: %+v\n Trusted: %t\n", nearActiveSensor, mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID])
 		if mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID] {
 			nearTrustedActiveSensors = append(nearTrustedActiveSensors, nearActiveSensor)
 		}
@@ -3258,7 +3290,7 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 
 	nearTrustedActiveSensors = nearActiveSensorsList
 
-	fmt.Printf("nearTrustedActiveSensors: %+v\n", nearTrustedActiveSensors)
+	printf("nearTrustedActiveSensors: %+v\n", nearTrustedActiveSensors)
 
 	//timeTestFunction
 	//t.measureSpeedSmartDataQuery(stub, 100, &nearTrustedActiveSensors, t0, t1)
@@ -3304,7 +3336,7 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 		return shim.Error(err.Error())
 	}
 
-	fmt.Printf("Energy available for selling by type: %+v\n", energyByTypeGeneratedKWH)
+	printf("Energy available for selling by type: %+v\n", energyByTypeGeneratedKWH)
 
 	successMessage := fmt.Sprintf("%+v\n successfully available for selling by the seller %s%s with the smart meter of ID: %s%s", energyByTypeGeneratedKWH, sellerInfo.MspIDSeller, sellerInfo.SellerID, sellerInfo.MspIDSmartMeter, sellerInfo.SmartMeterID)
 
@@ -3313,7 +3345,7 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 }
 
 func (chaincode *EnergyChaincode) registerSellBidTestContext(stub shim.ChaincodeStubInterface, sellerID string, quantityKWH float64, pricePerKWH float64, energyType string) pb.Response {
-	fmt.Println("---- registerSellBidTestContext function beggining ----")
+	println("---- registerSellBidTestContext function beggining ----")
 
 	var sellerInfo st.SellerInfo
 
@@ -3341,8 +3373,8 @@ func (chaincode *EnergyChaincode) registerSellBidTestContext(stub shim.Chaincode
 	}
 
 	//check if seller has already produced the amount of energy type
-	fmt.Printf("sellerInfo.EnergyToSellByType['%s']: %f\n", energyType, sellerInfo.EnergyToSellByType[energyType])
-	fmt.Printf("amountKWH: %f\n", quantityKWH)
+	printf("sellerInfo.EnergyToSellByType['%s']: %f\n", energyType, sellerInfo.EnergyToSellByType[energyType])
+	printf("amountKWH: %f\n", quantityKWH)
 	if sellerInfo.EnergyToSellByType[energyType] < quantityKWH {
 		return shim.Error("Seller does not have the indicated amount of " + energyType + " energy to sell!")
 	}
@@ -3384,7 +3416,7 @@ func (chaincode *EnergyChaincode) registerSellBidTestContext(stub shim.Chaincode
 }
 
 func getSellerInfo(stub shim.ChaincodeStubInterface, sellerMspID string, sellerID string) (st.SellerInfo, error) {
-	fmt.Println("---- getSellerInfo function beggining ----")
+	println("---- getSellerInfo function beggining ----")
 
 	var sellerInfo st.SellerInfo
 	var sellerInfoBytes []byte
@@ -3405,7 +3437,7 @@ func getSellerInfo(stub shim.ChaincodeStubInterface, sellerMspID string, sellerI
 }
 
 func (chaincode *EnergyChaincode) getEnergyTransactionsFromSellBidNumbersTestContext(stub shim.ChaincodeStubInterface, sellerID string, sellBidNumbers []string) pb.Response {
-	fmt.Println("---- getEnergyTransactionsFromSellBidNumbersTestContext function beggining ----")
+	println("---- getEnergyTransactionsFromSellBidNumbersTestContext function beggining ----")
 
 	err := cid.AssertAttributeValue(stub, "energy.seller", "true")
 	if err != nil {
@@ -3432,7 +3464,7 @@ func (chaincode *EnergyChaincode) getEnergyTransactionsFromSellBidNumbersTestCon
 }
 
 func (chaincode *EnergyChaincode) validateBuyBidTestContext(stub shim.ChaincodeStubInterface, paymentCompanyMspID string, token string) pb.Response {
-	fmt.Println("---- validateBuyBidTestContext function beggining ----")
+	println("---- validateBuyBidTestContext function beggining ----")
 
 	var buyBid st.BuyBid
 
@@ -3472,7 +3504,7 @@ func (chaincode *EnergyChaincode) validateBuyBidTestContext(stub shim.ChaincodeS
 	}
 
 	//send it to auction
-	fmt.Printf("Validated BuyBid: %+v\n", buyBid)
+	printf("Validated BuyBid: %+v\n", buyBid)
 
 	return shim.Success([]byte("BuyBid of token " + token + " validated!"))
 }

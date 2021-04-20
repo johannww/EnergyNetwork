@@ -75,7 +75,7 @@ parseTestConfigMap buyers "${buyersKeyValues[@]}"
 
 #initialize peers and orderers
 echo -e $blueback \## "Restarting peers and orderers and measuring their files size "   $resetvid 
-echo 'Files size sum (du / -s) result from each container:' > $testFolder/initial-containers-filesystem-sizes.txt
+echo 'Files size sum (du // -s) result from each container:' > $testFolder/initial-containers-filesystem-sizes.txt
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
     orgName=${parsedConfigMeFirst[$org,name]}
 
@@ -84,7 +84,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         docker restart orderer$i-$orgName 
         docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" orderer$i-$orgName > $testFolder/stats-orderer$i-$orgName.txt &
         echo -n "orderer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
-        docker exec orderer$i-$orgName du / -s >> $testFolder/initial-containers-filesystem-sizes.txt
+        docker exec orderer$i-$orgName du // -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
@@ -94,7 +94,7 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
         chaincodeContainerName=$(docker container ls --format "{{.Names}}" | grep "dev-peer$i-$orgName")
         docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" $chaincodeContainerName > $testFolder/stats-chaincode-peer$i-$orgName.txt &
         echo -n "peer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
-        docker exec peer$i-$orgName du / -s >> $testFolder/initial-containers-filesystem-sizes.txt
+        docker exec peer$i-$orgName du // -s >> $testFolder/initial-containers-filesystem-sizes.txt
     done
 done
 
@@ -125,11 +125,11 @@ echo -e $blueback \## "Starting sensors, sellers and buyers applications"   $res
 #nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp ${parsedTestCfg[buyers,msp]} --basedir $BASE_DIR --buyers ${parsedTestCfg[buyers,quantity]} --publishinterval ${parsedTestCfg[buyers,publishinterval]}  --publishquantity ${parsedTestCfg[buyers,publishquantity]} --utilityurl $utilityUrl --paymentcompanyurl $paymentUrl" > $BASE_DIR/test-reports/AppBuyerForTest.out 2>&1 &
 export MSYS_NO_PATHCONV=1
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
-    (docker exec cli-applications-$i bash -c 'nohup mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1') &
+    (docker exec cli-applications-$i bash -c 'mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1') &
     pidsSensor[$i]=$!
-    (docker exec cli-applications-$i bash -c 'nohup mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1') &
+    (docker exec cli-applications-$i bash -c 'mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1') &
     pidsSeller[$i]=$!
-    (docker exec cli-applications-$i bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1') &
+    (docker exec cli-applications-$i bash -c 'mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1') &
     pidsBuyer[$i]=$!
 done
 #pidBuyer=$(docker exec cli-applications bash -c 'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTestX509" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTestX509.out 2>&1 & echo $!')
@@ -168,6 +168,9 @@ echo -e $blueback \## "Applications ended "   $resetvid
 echo -e $blueback \## "Killing containers logging jobs"   $resetvid 
 jobs -p | xargs kill
 
+echo -e $blueback \## "Stopping periodic auction "   $resetvid 
+docker stop cli-applications-1
+
 echo -e $blueback \## "final containers sizes "   $resetvid 
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
     orgName=${parsedConfigMeFirst[$org,name]}
@@ -175,13 +178,13 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     nOrds=${parsedConfigMeFirst[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
         echo -n "orderer$i-$orgName: "  >> $testFolder/final-containers-filesystem-sizes.txt
-        docker exec orderer$i-$orgName du / -s >> $testFolder/final-containers-filesystem-sizes.txt
+        docker exec orderer$i-$orgName du // -s >> $testFolder/final-containers-filesystem-sizes.txt
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
         echo -n "peer$i-$orgName: "  >> $testFolder/final-containers-filesystem-sizes.txt
-        docker exec peer$i-$orgName du / -s >> $testFolder/final-containers-filesystem-sizes.txt
+        docker exec peer$i-$orgName du // -s >> $testFolder/final-containers-filesystem-sizes.txt
     done
 done
 
