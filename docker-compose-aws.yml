@@ -72,7 +72,7 @@ services:
             - CORE_PEER_DISCOVERY_ORGMEMBERSALLOWEDACCESS=true
         volumes:
             - //var/run:/host/var/run
-            - /home/ubuntu/EnergyNetwork/hyperledger/${ORG_NAME}/peer${PEER_NUMBER}:/tmp/hyperledger/${ORG_NAME}/peer${PEER_NUMBER}/
+            - /home/ubuntu/EnergyNetwork/hyperledger/${ORG_NAME}/peer${PEER_NUMBER}:/tmp/hyperledger/${ORG_NAME}/peer${PEER_NUMBER}
         networks: 
             - fabric-network
         ports:
@@ -102,13 +102,8 @@ services:
             - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9443 #to use ADMIN SERVER
             - ORDERER_CHANNELPARTICIPATION_ENABLED=true #to use ADMIN SERVER
         volumes:
-            - /home/ubuntu/EnergyNetwork/hyperledger/${ORG_NAME}/orderer${ORDERER_NUMBER}:/tmp/hyperledger/${ORG_NAME}/orderer${ORDERER_NUMBER}/
-        networks: 
-            - fabric-network
-        ports:
-            - 7050:7050
-            - 8443:8443 #metrics server
-            - 9443:9443 #admin server
+            - /home/ubuntu/EnergyNetwork/hyperledger/${ORG_NAME}/orderer${ORDERER_NUMBER}:/tmp/hyperledger/${ORG_NAME}/orderer${ORDERER_NUMBER}
+        network_mode: "host"
 
     cli:
         container_name: cli
@@ -141,8 +136,7 @@ services:
             - APPLICATION_INSTANCE_ID=${APPLICATION_INSTANCE_ID}
         volumes:
             - /home/ubuntu/EnergyNetwork:/EnergyNetwork
-        networks:
-            - fabric-network
+        network_mode: "host"
 
 
 
