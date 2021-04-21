@@ -253,7 +253,8 @@ public class AppSellerForTest {
                         try {
 
                             List<PublishedSellBid> publishedBids = new LinkedList<PublishedSellBid>();
-                            String sellerFullName = String.format("seller%d-%s", threadNum + (cliApplicationId-1) * THREAD_NUM,
+                            String sellerFullName = String.format("seller%d-%s",
+                                    threadNum + (cliApplicationId - 1) * THREAD_NUM,
                                     cmd.getOptionValue("msp").toLowerCase());
                             registerAuctionEventListener(contract, (X509Identity) identity, publishedBids,
                                     sellerFullName);
@@ -280,43 +281,49 @@ public class AppSellerForTest {
                             // adding a little randomness to start time to avoid 100% sync among threads
                             Thread.sleep(new Random().nextInt(500) + 10000);
                             startExecution = System.currentTimeMillis();
+                            int invalidatedTransacations = 0;
                             while (publish < maxPublish) {
 
-                                // calling register sellbid transaction publishEnergyGenerationTestContext
-                                startTransaction = System.currentTimeMillis();
-                                transaction = contract.createTransaction("publishEnergyGenerationTestContext");
-                                generationEndTime = Long.toString(System.currentTimeMillis() / 1000L);
-                                randomGeneratedEnergy = Double.toString(new Random().nextDouble() * 20 + 10);
-                                transaction.submit(sellerFullName, generationBeginningTime, generationEndTime, "solar",
-                                        randomGeneratedEnergy);
-                                generationBeginningTime = Long.toString(System.currentTimeMillis() / 1000L);
-                                transactionTimeWait += System.currentTimeMillis() - startTransaction;
+                                try {
+                                    // calling register sellbid transaction publishEnergyGenerationTestContext
+                                    startTransaction = System.currentTimeMillis();
+                                    transaction = contract.createTransaction("publishEnergyGenerationTestContext");
+                                    generationEndTime = Long.toString(System.currentTimeMillis() / 1000L);
+                                    randomGeneratedEnergy = Double.toString(new Random().nextDouble() * 20 + 10);
+                                    transaction.submit(sellerFullName, generationBeginningTime, generationEndTime,
+                                            "solar", randomGeneratedEnergy);
+                                    generationBeginningTime = Long.toString(System.currentTimeMillis() / 1000L);
+                                    transactionTimeWait += System.currentTimeMillis() - startTransaction;
 
-                                // calling register sellbid transaction
-                                startTransaction = System.currentTimeMillis();
-                                transaction = contract.createTransaction("registerSellBidTestContext");
-                                transaction.submit(sellerFullName, cmd.getOptionValue("energyquantitykwh"),
-                                        cmd.getOptionValue("priceperkwh"), cmd.getOptionValue("energytype"));
-                                transactionTimeWait += System.currentTimeMillis() - startTransaction;
-                                publishedBids.add(new PublishedSellBid(publish + 1,
-                                        Double.parseDouble(cmd.getOptionValue("energyquantitykwh"))));
+                                    // calling register sellbid transaction
+                                    startTransaction = System.currentTimeMillis();
+                                    transaction = contract.createTransaction("registerSellBidTestContext");
+                                    transaction.submit(sellerFullName, cmd.getOptionValue("energyquantitykwh"),
+                                            cmd.getOptionValue("priceperkwh"), cmd.getOptionValue("energytype"));
+                                    transactionTimeWait += System.currentTimeMillis() - startTransaction;
+                                    publishedBids.add(new PublishedSellBid(publish + 1,
+                                            Double.parseDouble(cmd.getOptionValue("energyquantitykwh"))));
 
-                                /*
-                                 * transaction =
-                                 * contract.createTransaction("getEnergyTransactionsFromFullSellBidKey");
-                                 * transactionResult = transaction.evaluate("UFSC",
-                                 * "eDUwOTo6Q049c2VsbGVyMS11ZnNjLE9VPWNsaWVudCtPVT11ZnNjLE89VUZTQyxMPUZsb3JpYW5vcG9saXMsU1Q9U0MsQz1CUjo6Q049cmNhLWNhLE9VPUZhYnJpYyxPPUh5cGVybGVkZ2VyLFNUPU5vcnRoIENhcm9saW5hLEM9VVM=",
-                                 * "995");
-                                 * 
-                                 * String energyTransactionsJson = new String(transactionResult,
-                                 * StandardCharsets.UTF_8); System.out.println(energyTransactionsJson);
-                                 * X509Identity x509Id = (X509Identity) identity;
-                                 * 
-                                 * requestPaymentForEnergyTransactions("seller1-ufsc", x509Id,
-                                 * energyTransactionsJson);
-                                 */
-                                publish++;
-                                Thread.sleep(interval);
+                                    /*
+                                     * transaction =
+                                     * contract.createTransaction("getEnergyTransactionsFromFullSellBidKey");
+                                     * transactionResult = transaction.evaluate("UFSC",
+                                     * "eDUwOTo6Q049c2VsbGVyMS11ZnNjLE9VPWNsaWVudCtPVT11ZnNjLE89VUZTQyxMPUZsb3JpYW5vcG9saXMsU1Q9U0MsQz1CUjo6Q049cmNhLWNhLE9VPUZhYnJpYyxPPUh5cGVybGVkZ2VyLFNUPU5vcnRoIENhcm9saW5hLEM9VVM=",
+                                     * "995");
+                                     * 
+                                     * String energyTransactionsJson = new String(transactionResult,
+                                     * StandardCharsets.UTF_8); System.out.println(energyTransactionsJson);
+                                     * X509Identity x509Id = (X509Identity) identity;
+                                     * 
+                                     * requestPaymentForEnergyTransactions("seller1-ufsc", x509Id,
+                                     * energyTransactionsJson);
+                                     */
+                                    publish++;
+                                    Thread.sleep(interval);
+                                } catch (Exception e) {
+                                    System.out.println(String.format("Failed %d generation energy submission",
+                                            invalidatedTransacations));
+                                }
                             }
 
                             totalExecutionTime = System.currentTimeMillis() - startExecution;

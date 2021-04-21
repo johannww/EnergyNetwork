@@ -33,6 +33,54 @@ index ab84afd3f..82699b571 100644
  gopkg.in/yaml.v2 v2.2.4/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
  gopkg.in/yaml.v2 v2.3.0 h1:clyUAQHOM3G0M3f5vQj7LuJrETvjVot3Z5el9nffUtU=
  gopkg.in/yaml.v2 v2.3.0/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
+diff --git a/images/ccenv/Dockerfile b/images/ccenv/Dockerfile
+index 1553fddf4..bc18e3468 100644
+--- a/images/ccenv/Dockerfile
++++ b/images/ccenv/Dockerfile
+@@ -6,6 +6,7 @@ ARG GO_VER
+ ARG ALPINE_VER
+ FROM golang:${GO_VER}-alpine${ALPINE_VER}
+ RUN apk add --no-cache \
++	binutils-gold \
+ 	g++ \
+ 	gcc \
+ 	git \
+diff --git a/images/orderer/Dockerfile b/images/orderer/Dockerfile
+index 1ca6adf0f..44e02f51d 100644
+--- a/images/orderer/Dockerfile
++++ b/images/orderer/Dockerfile
+@@ -13,6 +13,7 @@ RUN [ ! -e /etc/nsswitch.conf ] && echo 'hosts: files dns' > /etc/nsswitch.conf
+ 
+ FROM golang:${GO_VER}-alpine${ALPINE_VER} as golang
+ RUN apk add --no-cache \
++	binutils-gold \
+ 	gcc \
+ 	musl-dev \
+ 	git \
+diff --git a/images/peer/Dockerfile b/images/peer/Dockerfile
+index 5ce9da479..cfbbe6ffa 100644
+--- a/images/peer/Dockerfile
++++ b/images/peer/Dockerfile
+@@ -15,6 +15,7 @@ RUN echo 'hosts: files dns' > /etc/nsswitch.conf
+ FROM golang:${GO_VER}-alpine${ALPINE_VER} as golang
+ RUN apk add --no-cache \
+ 	bash \
++	binutils-gold \
+ 	gcc \
+ 	git \
+ 	make \
+diff --git a/images/tools/Dockerfile b/images/tools/Dockerfile
+index eb3c154ba..46e3c81be 100644
+--- a/images/tools/Dockerfile
++++ b/images/tools/Dockerfile
+@@ -8,6 +8,7 @@ FROM golang:${GO_VER}-alpine${ALPINE_VER} as golang
+ 
+ RUN apk add --no-cache \
+ 	bash \
++	binutils-gold \
+ 	gcc \
+ 	git \
+ 	make \
 diff --git a/orderer/consensus/etcdraft/blockcreator.go b/orderer/consensus/etcdraft/blockcreator.go
 index 2475e329c..61a0fc6bd 100644
 --- a/orderer/consensus/etcdraft/blockcreator.go

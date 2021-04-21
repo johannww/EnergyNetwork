@@ -9,7 +9,7 @@ FROM ubuntu:${UBUNTU_VERSION}
 RUN apt update
 RUN apt install openjdk-13-jre -y
 RUN apt install openjdk-13-jdk -y
-ENV JAVA_HOME=/usr/lib/jvm/java-13-openjdk-amd64/
+ENV JAVA_HOME=$ARCH_JAVA_HOME
 ENV PATH=$PATH:$JAVA_HOME/bin
 
 ENV MAVEN_VERSION=3.6.3-1
