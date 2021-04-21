@@ -23,7 +23,8 @@ fi
 
 keyPairName=$(aws ec2 describe-key-pairs --output text --query 'KeyPairs[0].KeyName')
 
-imageId=$(aws ec2 describe-images --owners "self" --filters Name=name,Values=EnergyNetworkImage --output text --query 'Images[0].ImageId')
+if [[ $awsInstanceType == *"g."* ]]; then imageName="EnergyNetworkImageArm"; else imageName="EnergyNetworkImage"; fi
+imageId=$(aws ec2 describe-images --owners "self" --filters Name=name,Values=$imageName --output text --query 'Images[0].ImageId')
 
 instanceId=$(aws ec2 run-instances --image-id $imageId --count 1 --instance-type $awsInstanceType --key-name $keyPairName --security-group-ids $securityGroup --subnet-id $subnetId --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=$machineName}]" --output text --query 'Instances[0].InstanceId')
 
