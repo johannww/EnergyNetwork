@@ -101,13 +101,13 @@ for ((org=0; org<$numberOfOrgs; org+=1)); do
     nPeers=${matrix[$org,peer-quantity]}
 
     for ((i=1; i<=$nPeers; i+=1)); do
-        orgsPeerHosts[peer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh peer$i-$orgName $ordererInstanceType)
+        orgsPeerHosts[peer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh peer$i-$orgName $peerInstanceType)
         echo "peer$i-$orgName: ${orgsPeerHosts[peer$i-$orgName]}" >> $BASE_DIR/aws-hosts.yaml 
     done
 
     nOrds=${matrix[$org,orderer-quantity]}
-    for ((i=1; i<=$nOrds; i+=1)); do
-        orgsOrdHosts[orderer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh orderer$i-$orgName $peerInstanceType)
+    for ((i=1; i<=$nOrds; i+=1)); do 
+        orgsOrdHosts[orderer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh orderer$i-$orgName $ordererInstanceType)
         echo "orderer$i-$orgName: ${orgsOrdHosts[orderer$i-$orgName]}" >> $BASE_DIR/aws-hosts.yaml 
     done
 
@@ -497,6 +497,7 @@ done
 #    sleep 1s
 #    docker logs cli-$ORG_NAME
 #done
+echo -e $blueback \# Turning 'cli' on $resetvid
 docker-compose -f docker-compose-aws.yml up -d cli
 
 #

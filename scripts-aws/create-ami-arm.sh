@@ -93,8 +93,9 @@ until ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$publicDnsName "echo
 
 echo -e $blueback \# installing docker-compose, golang and patched fabric software $resetvid
 ssh -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$publicDnsName << EOF
-    sudo curl -L "https://github.com/docker/compose/releases/download/1.28.6/docker-compose-\$(uname -s)-\$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
+    sudo apt update
+    sudo apt install python3-pip -y
+    sudo pip3 install docker-compose
     sudo apt install build-essential -y
     wget https://golang.org/dl/go1.15.11.linux-arm64.tar.gz
     sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.15.11.linux-arm64.tar.gz
