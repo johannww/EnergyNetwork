@@ -58,7 +58,7 @@ index 1ca6adf0f..44e02f51d 100644
  	musl-dev \
  	git \
 diff --git a/images/peer/Dockerfile b/images/peer/Dockerfile
-index 5ce9da479..cfbbe6ffa 100644
+index 5ce9da479..ea9cb6be0 100644
 --- a/images/peer/Dockerfile
 +++ b/images/peer/Dockerfile
 @@ -15,6 +15,7 @@ RUN echo 'hosts: files dns' > /etc/nsswitch.conf
@@ -69,8 +69,17 @@ index 5ce9da479..cfbbe6ffa 100644
  	gcc \
  	git \
  	make \
+@@ -24,6 +25,8 @@ WORKDIR $GOPATH/src/github.com/hyperledger/fabric
+ 
+ FROM golang as peer
+ ARG GO_TAGS
++# peer must be built STATICALLY to run in arm64 docker
++ENV CGO_ENABLED=0
+ RUN make peer GO_TAGS=${GO_TAGS}
+ 
+ FROM peer-base
 diff --git a/images/tools/Dockerfile b/images/tools/Dockerfile
-index eb3c154ba..46e3c81be 100644
+index eb3c154ba..1dab3089c 100644
 --- a/images/tools/Dockerfile
 +++ b/images/tools/Dockerfile
 @@ -8,6 +8,7 @@ FROM golang:${GO_VER}-alpine${ALPINE_VER} as golang
@@ -81,6 +90,18 @@ index eb3c154ba..46e3c81be 100644
  	gcc \
  	git \
  	make \
+@@ -17,7 +18,10 @@ ADD . $GOPATH/src/github.com/hyperledger/fabric
+ WORKDIR $GOPATH/src/github.com/hyperledger/fabric
+ 
+ FROM golang as tools
+-RUN make configtxgen configtxlator cryptogen peer discover idemixgen
++RUN make configtxgen configtxlator cryptogen discover idemixgen
++# peer must be built STATICALLY to run in arm64 docker
++ENV CGO_ENABLED=0
++RUN make peer
+ 
+ FROM golang:${GO_VER}-alpine
+ # git is required to support `go list -m`
 diff --git a/orderer/consensus/etcdraft/blockcreator.go b/orderer/consensus/etcdraft/blockcreator.go
 index 2475e329c..61a0fc6bd 100644
 --- a/orderer/consensus/etcdraft/blockcreator.go
