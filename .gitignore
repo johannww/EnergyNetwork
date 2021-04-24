@@ -5,6 +5,7 @@ hyperledger/
 chaincodeJSON/
 generated-config/
 generated-config-aws/
+errors/
 *.txt
 git.key
 testbash.sh

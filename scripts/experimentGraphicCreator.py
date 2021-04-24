@@ -10,17 +10,18 @@ import matplotlib.pyplot as plt
 units = {}
 CONTAINER_METRICS_QUANTITY=4
 CPU = "Cpu"
-units[CPU] = "%"
+units[CPU] = {"unit":"%", "type": "Instantaneous"}
 MEM = "Memory"
-units[MEM] = "GiB"
+units[MEM] = {"unit":"GiB", "type": "Instantaneous"}
 NET_IN = "Network In"
 NET_OUT = "Network Out"
-units[NET_IN] = "MB"
-units[NET_OUT] = "MB"
+units[NET_IN] = {"unit": "MB", "type": "Cumulative"} 
+units[NET_OUT] = {"unit": "MB", "type": "Cumulative"}
 DISK_READ = "Disk Reads"
 DISK_WRITE = "Disk Writes"
-units[DISK_READ] = "MB"
-units[DISK_WRITE] = "MB"
+units[DISK_READ] = {"unit": "MB", "type": "Cumulative"}
+units[DISK_WRITE] = {"unit": "MB", "type": "Cumulative"}
+
 
 
 def memToGibFloat(memStrDockerStats):
@@ -92,10 +93,10 @@ def syncStats():
 def saveEntitiesGraphs():
   for entityName in stats:
     for metric in stats[entityName]:
-      plt.title("{} - {}".format(entityName, metric))
+      plt.title("{} - {} - {}".format(entityName, metric, units[metric]["type"]))
       plt.plot(stats[entityName][metric])
       plt.xlabel("Time (s)")
-      plt.ylabel("{} ({})".format(metric, units[metric]))
+      plt.ylabel("{} ({})".format(metric, units[metric]["unit"]))
       plt.grid(True)
       #plt.ylim(bottom=-0.001)
       plt.savefig("{}/stats-{}-{}.jpg".format(plotsDir, entityName, metric.replace(" ","-")))
