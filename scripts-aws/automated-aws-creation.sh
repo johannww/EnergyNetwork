@@ -102,18 +102,18 @@ for ((org=0; org<$numberOfOrgs; org+=1)); do
 
     for ((i=1; i<=$nPeers; i+=1)); do
         orgsPeerHosts[peer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh peer$i-$orgName $peerInstanceType)
-        echo "peer$i-$orgName: ${orgsPeerHosts[peer$i-$orgName]}" >> $BASE_DIR/aws-hosts.yaml 
+        echo "peer$i-$orgName: \"${orgsPeerHosts[peer$i-$orgName]}\"" >> $BASE_DIR/aws-hosts.yaml 
     done
 
     nOrds=${matrix[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do 
         orgsOrdHosts[orderer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh orderer$i-$orgName $ordererInstanceType)
-        echo "orderer$i-$orgName: ${orgsOrdHosts[orderer$i-$orgName]}" >> $BASE_DIR/aws-hosts.yaml 
+        echo "orderer$i-$orgName: \"${orgsOrdHosts[orderer$i-$orgName]}\"" >> $BASE_DIR/aws-hosts.yaml 
     done
 
     for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
         applicationsHosts[$i]=$($SCRIPT_DIR/create-energy-network-instance.sh application$i $applicationsInstanceType)
-        echo "application$i: ${applicationsHosts[$i]}" >> $BASE_DIR/aws-hosts.yaml 
+        echo "application$i: \"${applicationsHosts[$i]}\"" >> $BASE_DIR/aws-hosts.yaml 
     done
 
 done

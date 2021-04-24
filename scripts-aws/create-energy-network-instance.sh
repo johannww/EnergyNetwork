@@ -31,4 +31,6 @@ instanceId=$(aws ec2 run-instances --image-id $imageId --count 1 --instance-type
 #instanceId=$(aws ec2 describe-instances --output text --query 'Reservations[0].Instances[0].InstanceId') && echo $instanceId
 aws ec2 wait instance-running --instance-ids $instanceId
 
-publicDnsName=$(aws ec2 describe-instances --instance-ids $instanceId --output text --query 'Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicDnsName') && echo $publicDnsName
+#publicDnsName=$(aws ec2 describe-instances --instance-ids $instanceId --output text --query 'Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicDnsName') && echo $publicDnsName
+publicIp=$(aws ec2 describe-instances --instance-ids $instanceId --output text --query 'Reservations[0].Instances[0].NetworkInterfaces[0].Association.PublicIp') && echo $publicIp
+
