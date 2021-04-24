@@ -715,13 +715,13 @@ mkdir -p $BASE_DIR/test-reports
 
 #echo -e $blueback " Starting container 'cli-application' to execute our applications inside the docker private network " $resetvid
 #docker-compose -f docker-compose-aws.yml up -d cli-applications-ubuntu
-
+mvn -f $BASE_DIR/energy-applications clean
 tar -czf energy-applications.tar.gz -C $BASE_DIR energy-applications
 echo -e $blueback "Creating cli-applications-ubuntu container in application instances " $resetvid
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem energy-applications.tar.gz ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork
     scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork/
-   sshCmd ${applicationsHosts[$i]} << EOF
+    sshCmd ${applicationsHosts[$i]} << EOF
         export COMPOSE_PROJECT_NAME="fabric"
         export BINDABLE_PORT=0
         export APPLICATION_INSTANCE_ID=$i
@@ -731,7 +731,10 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
         docker-compose -f docker-compose-aws.yml up -d cli-applications-ubuntu
         mkdir ./test-reports
         docker exec cli-applications mvn clean
-        docker exec cli-applications mvn package -DskipTests
+        docker exec cli-applications mvn package -DskipTests -P auction
+        docker exec cli-applications mvn package -DskipTests -P buyer
+        docker exec cli-applications mvn package -DskipTests -P seller
+        docker exec cli-applications mvn package -DskipTests -P sensor
 EOF
 done
 

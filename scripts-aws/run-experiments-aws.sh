@@ -152,8 +152,8 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     sshCmdBg ${hosts[application$i]} 'docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" cli-applications' > $testFolder/stats-cli-applications-$i.txt
 done
 
-#loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
-#loggingFlag2="-Dlog4j.configuration=log4j.properties"
+loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
+loggingFlag2="-Dlog4j.configuration=log4j.properties"
 
 echo -e $blueback \## "Starting Utility and PaymentCompany applications "   $resetvid 
 #cd energy-applications
@@ -186,9 +186,11 @@ export MSYS_NO_PATHCONV=1
 #hosts[application1]=ec2-13-233-0-244.ap-south-1.compute.amazonaws.com
 
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
-    sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'"
+    #sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'"
+    sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/sensor-jar-with-dependencies.jar -msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'"
     pidsSensor[$i]=$!
-    sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1'"'"
+    #sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1'"'"
+    sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/seller-jar-with-dependencies.jar -msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1'"'"
     pidsSeller[$i]=$!
     #(sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1'"'") 
     #pidsBuyer[$i]=$!
@@ -202,7 +204,9 @@ echo -e $blueback \## "Starting PeriodicAuction application"  $resetvid
 #nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval 50000 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" &
 
 export MSYS_NO_PATHCONV=1
-sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
+#sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
+
+sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/auction-jar-with-dependencies.jar -msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
 unset MSYS_NO_PATHCONV
 #cd ..
 #get metrics from peers and orederes metric servers
