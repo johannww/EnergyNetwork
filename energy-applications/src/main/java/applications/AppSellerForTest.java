@@ -331,9 +331,9 @@ public class AppSellerForTest {
 
             for (int i = 1; i <= THREAD_NUM; i++)
                 threads[i].join();
-
-            System.out.println("ENDED!");
-            System.exit(0);
         }
+
+        System.out.println("ENDED!");
+        System.exit(0);
     }
 }

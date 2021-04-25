@@ -85,8 +85,7 @@ public class AppPeriodicAuction {
 
         // publishing the buybid
         // Create a gateway connection
-        try {
-            Gateway gateway = builder.connect();
+        try (Gateway gateway = builder.connect()){
 
 
             // Obtain a smart contract deployed on the network.
