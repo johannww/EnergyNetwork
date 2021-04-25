@@ -38,7 +38,17 @@ type FunctionStats struct {
 }
 
 //averageFunctionTime tracks the average time to call a chaincode function
-var averageFunctionTime map[string]FunctionStats
+var averageFunctionTimes map[string]*FunctionStats
+
+// FunctionAndDuration encapsulates the function name and the a single exec duration to be sent from
+// the execution threads (or routines) to the average calculator routine
+type FunctionAndDuration struct {
+	FunctionName string
+	Duration     time.Duration
+}
+
+// channelAverageCalculator transfers the function duration to a specific goroutine to avoid blocking the chaincode return
+var channelAverageCalculator chan *FunctionAndDuration
 
 //functionMap to make function calls faster
 var functionMap map[string]func(shim.ChaincodeStubInterface, []string) pb.Response
@@ -201,7 +211,11 @@ func (chaincode *EnergyChaincode) setPrint(print bool) pb.Response {
 }
 
 func (chaincode *EnergyChaincode) getAverageFunctionTimes() pb.Response {
-	jsonFunctionTimes, _ := json.Marshal(averageFunctionTime)
+	averageFunctionTimesMap := make(map[string]FunctionStats)
+	for functionName := range functionMap {
+		averageFunctionTimesMap[functionName] = *(averageFunctionTimes[functionName])
+	}
+	jsonFunctionTimes, _ := json.Marshal(averageFunctionTimesMap)
 	return shim.Success([]byte(jsonFunctionTimes))
 }
 
@@ -2183,6 +2197,22 @@ func (chaincode *EnergyChaincode) Init(stub shim.ChaincodeStubInterface) pb.Resp
 
 }
 
+func recalculateFunctionAverageTime() {
+	for {
+		functionNameAndDuration := <-channelAverageCalculator
+		printf("%+v\n", functionNameAndDuration)
+		function := functionNameAndDuration.FunctionName
+		elapsed := functionNameAndDuration.Duration
+
+		functionStats := averageFunctionTimes[function]
+		n := float64(functionStats.NCalls)
+		functionStats.NCalls++
+		functionStats.AvarageExecTimeMs = (n/(n+1))*functionStats.AvarageExecTimeMs +
+			float64(elapsed.Milliseconds())/(n+1)
+	}
+
+}
+
 //Invoke calls a function using the "peer chaincode invoke" command
 func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Response {
 	println("energy Invoke")
@@ -2192,12 +2222,7 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 		now := time.Now()
 		defer func() {
 			elapsed := time.Since(now)
-			functionStats := averageFunctionTime[function]
-			n := float64(functionStats.NCalls)
-			functionStats.NCalls++
-			functionStats.AvarageExecTimeMs = (n/(n+1))*functionStats.AvarageExecTimeMs +
-				float64(elapsed.Milliseconds())/(n+1)
-			averageFunctionTime[function] = functionStats
+			channelAverageCalculator <- &FunctionAndDuration{function, elapsed}
 			printf("Function: %s took \n", function)
 			println(elapsed)
 		}()
@@ -2369,7 +2394,7 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 func main() {
 	chaincode := new(EnergyChaincode)
 
-	averageFunctionTime = make(map[string]FunctionStats)
+	averageFunctionTimes = make(map[string]*FunctionStats)
 
 	functionMap = map[string]func(shim.ChaincodeStubInterface, []string) pb.Response{
 		"getAverageFunctionTimes": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
@@ -2574,6 +2599,15 @@ func main() {
 			return chaincode.validateBuyBidTestContext(stub, args[0], args[1])
 		},
 	}
+
+	// making lists to store the stats of each function, since go map does not allow multiple reads and writes
+	// even on different keys
+	for functionName := range functionMap {
+		averageFunctionTimes[functionName] = &FunctionStats{0, 0}
+	}
+
+	channelAverageCalculator = make(chan *FunctionAndDuration)
+	go recalculateFunctionAverageTime()
 
 	err := shim.Start(chaincode)
 	if err != nil {
