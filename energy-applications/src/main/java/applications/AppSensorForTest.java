@@ -155,7 +155,7 @@ public class AppSensorForTest {
             // Path to a common connection profile describing the network.
             String mspLower = cmd.getOptionValue("msp").toLowerCase();
             Path networkConfigFile = Paths.get("cfgs",
-                    String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
+                    String.format("%s%snon-blocking-%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
 
             // Configure the gateway connection used to access the network.
             builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile)
