@@ -1,6 +1,6 @@
 #quantity per cli-application
 sensors:
-  quantity: 1
+  quantity: 600
   unit: 3834792229
   #Interval in ms
   publishinterval: 5000

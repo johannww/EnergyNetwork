@@ -60,7 +60,7 @@ def netUsageToMbFloat(netStrDockerStats):
 def mountEntityStats(entityName):
   with(open(testReportDir+"/stats-"+entityName+".txt", "r")) as stat:
     statTxt = stat.read()
-    statTxt = statTxt.replace("[2J[H", "").replace("\n", ":")
+    statTxt = statTxt.replace("[2J[H", "").replace("\n", ":").replace("--:-- / --:--:--", "-5%:-100MiB / -100MiB:-100MB / -100MB:-100MB / -100MB")
     dataCells = statTxt.split(":")[:-1]
     stats[entityName] = {CPU: [], MEM: [], NET_IN: [], NET_OUT: [], DISK_READ: [], DISK_WRITE: []}
     for metricsSetNumber in range(0, len(dataCells), CONTAINER_METRICS_QUANTITY):
