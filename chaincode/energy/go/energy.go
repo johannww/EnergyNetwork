@@ -971,7 +971,8 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 	}
 
 	//test if t1 is greater or equal NOW
-	if t1 > uint64(time.Now().Unix()) {
+	currentTimestamp := uint64(time.Now().Unix())
+	if t1 > currentTimestamp+acceptedDelay {
 		return shim.Error("t1 MUST be less or equal than the CURRENT TIME")
 	}
 
@@ -3241,10 +3242,11 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 	}
 
 	//test if t1 is greater or equal NOW
+	currentTimestamp := uint64(time.Now().Unix())
 	printf("t1: %d\n", t1)
-	printf("Current timestamp: %d\n", uint64(time.Now().Unix()))
-	if t1 > uint64(time.Now().Unix()) {
-		return shim.Error("t1 MUST be less or equal than the CURRENT TIME")
+	printf("Current timestamp: %d\n", currentTimestamp)
+	if t1 > currentTimestamp+acceptedDelay {
+		return shim.Error(fmt.Sprintf("t1: %d MUST be less or equal than the CURRENT TIME %d + the accepted delay of %ds", t1, currentTimestamp, acceptedDelay))
 	}
 
 	//get Meter MSP and MeterID
