@@ -281,7 +281,7 @@ public class AppSellerForTest {
                             // adding a little randomness to start time to avoid 100% sync among threads
                             Thread.sleep(new Random().nextInt(500) + 10000);
                             startExecution = System.currentTimeMillis();
-                            int invalidatedTransacations = 0;
+                            int invalidatedEnergyGenerations = 0, invalidatedSellbid =0;
                             while (publish < maxPublish) {
 
                                 try {
@@ -295,6 +295,13 @@ public class AppSellerForTest {
                                     generationBeginningTime = Long.toString(System.currentTimeMillis() / 1000L);
                                     transactionTimeWait += System.currentTimeMillis() - startTransaction;
 
+                                } catch (Exception e) {
+                                    System.out.println("Failed energy generation submission: " + e.getMessage());
+                                    invalidatedEnergyGenerations++;
+                                }
+
+                                try {
+
                                     // calling register sellbid transaction
                                     startTransaction = System.currentTimeMillis();
                                     transaction = contract.createTransaction("registerSellBidTestContext");
@@ -304,8 +311,8 @@ public class AppSellerForTest {
                                     publishedBids.add(new PublishedSellBid(publish + 1,
                                             Double.parseDouble(cmd.getOptionValue("energyquantitykwh"))));
                                 } catch (Exception e) {
-                                    System.out.println(String.format("Failed %d generation energy submission",
-                                            invalidatedTransacations));
+                                    System.out.println("Failed SellBid submission: " + e.getMessage());
+                                    invalidatedSellbid++;
                                 }
                                 
                                 publish++;

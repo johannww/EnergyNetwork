@@ -11,7 +11,7 @@ sellers:
   quantity: 50
   #Interval in ms
   publishinterval: 5000
-  publishquantity: 20
+  publishquantity: 5
   msp: UFSC
 
 
