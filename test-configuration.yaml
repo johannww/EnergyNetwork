@@ -1,6 +1,6 @@
 #quantity per cli-application
 sensors:
-  quantity: 1
+  quantity: 600
   unit: 3834792229
   #Interval in ms
   publishinterval: 5000
@@ -8,10 +8,10 @@ sensors:
   msp: UFSC
 
 sellers:
-  quantity: 200
+  quantity: 600
   #Interval in ms
   publishinterval: 5000
-  publishquantity: 10
+  publishquantity: 20
   msp: UFSC
 
 

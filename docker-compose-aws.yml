@@ -103,6 +103,7 @@ services:
             - ORDERER_CHANNELPARTICIPATION_ENABLED=true #to use ADMIN SERVER
         volumes:
             - /home/ubuntu/EnergyNetwork/hyperledger/${ORG_NAME}/orderer${ORDERER_NUMBER}:/tmp/hyperledger/${ORG_NAME}/orderer${ORDERER_NUMBER}
+        network_mode: "host"
 
     cli:
         container_name: cli
@@ -135,7 +136,7 @@ services:
             - APPLICATION_INSTANCE_ID=${APPLICATION_INSTANCE_ID}
         volumes:
             - /home/ubuntu/EnergyNetwork:/EnergyNetwork
-
+        network_mode: "host"
 
 
 
