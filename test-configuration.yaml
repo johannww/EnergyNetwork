@@ -16,10 +16,10 @@ sellers:
 
 
 buyers:
-  quantity: 10
+  quantity: 1
   #Interval in ms
   publishinterval: 5000
-  publishquantity: 20
+  publishquantity: 1
   msp: IDEMIXORG
 
 #Interval in ms

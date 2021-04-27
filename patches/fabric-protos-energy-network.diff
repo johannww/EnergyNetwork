@@ -1,18 +1,23 @@
 diff --git a/peer/proposal_response.proto b/peer/proposal_response.proto
-index 4a29e9e..1a83696 100644
+index 4a29e9e..ee62215 100644
 --- a/peer/proposal_response.proto
 +++ b/peer/proposal_response.proto
-@@ -51,6 +51,9 @@ message Response {
+@@ -51,6 +51,14 @@ message Response {
  
      // A payload that can be used to include metadata with this response.
      bytes payload = 3;
 +
 +    //JOHANN a priority set by the chaincode Response to be evaluated when ordering transactions
 +    Priority priority = 4;
++
++    //JOHANN flag to prevent the ChaincodeAction to have the 
++    //shim.QueryStateByRange checked in the commit phase.
++    //If set to 'true', avoids invalidation due to PHANTOM_READ_CONFLICT
++    bool bypassPhantomReadCheck = 5;
  }
  
  // ProposalResponsePayload is the payload of a proposal response.  This message
-@@ -91,3 +94,10 @@ message Endorsement {
+@@ -91,3 +99,10 @@ message Endorsement {
      // the endorser's certificate; ie, sign(ProposalResponse.payload + endorser)
      bytes signature = 2;
  }

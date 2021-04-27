@@ -46,6 +46,7 @@ rm -r fabric
 #echo -e $blueback \## Stopping and removing container '"fabric-protos-compilation"' $resetvid
 #docker stop fabric-protos-compilation
 #docker container rm fabric-protos-compilation
+#docker image rm fabric-protos-compilation
 #cd ..
 
 #echo -e $blueback \## "Installing JAVA dependencies for this machine" $resetvid

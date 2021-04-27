@@ -56,6 +56,10 @@ var functionMap map[string]func(shim.ChaincodeStubInterface, []string) pb.Respon
 //accept timestamp delay of XX seconds
 var acceptedDelay uint64 = 30
 
+//accepted clock drift between this chaincode and the applications  (XX seconds)
+//only applied on publishEnergyGeneration function
+var acceptedClockDrift uint64 = 10
+
 //max uint64 str chars
 var maxUint64Chars int = len(strconv.FormatUint(^uint64(0), 10))
 
@@ -680,8 +684,7 @@ func (chaincode *EnergyChaincode) publishSensorData(stub shim.ChaincodeStubInter
 	//verify if data is still valid based on timestamp
 	currentTime := uint64(time.Now().Unix())
 	if currentTime > timestamp+acceptedDelay {
-		//return shim.Error("The data timestamp is too old!")
-		println("The data timestamp is too old!")
+		return shim.Error("The data timestamp is too old!")
 	}
 
 	//check if caller is a sensor
@@ -972,8 +975,8 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 
 	//test if t1 is greater or equal NOW
 	currentTimestamp := uint64(time.Now().Unix())
-	if t1 > currentTimestamp+acceptedDelay {
-		return shim.Error("t1 MUST be less or equal than the CURRENT TIME")
+	if t1 > currentTimestamp+acceptedClockDrift {
+		return shim.Error(fmt.Sprintf("t1: %d MUST be less or equal than the CURRENT TIME %d + the accepted clock drift of %ds", t1, currentTimestamp, acceptedClockDrift))
 	}
 
 	//get Meter MSP and MeterID
@@ -1102,7 +1105,7 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 
 	successMessage := fmt.Sprintf("%+v\n successfully available for selling by the seller %s%s with the smart meter of ID: %s%s", energyByTypeGeneratedKWH, sellerInfo.MspIDSeller, sellerInfo.SellerID, sellerInfo.MspIDSmartMeter, sellerInfo.SmartMeterID)
 
-	return shim.SuccessWithPriority([]byte(successMessage), pb.Priority_HIGH)
+	return shim.SuccessWithPriorityBypassPhantoReadCheck([]byte(successMessage), pb.Priority_MEDIUM)
 	//return shim.Error("Testing time")
 }
 
@@ -1572,7 +1575,7 @@ func (chaincode *EnergyChaincode) auction(stub shim.ChaincodeStubInterface) pb.R
 	//return shim.Success(nil)
 	//ensuring that applications are warned when auction is performed
 	stub.SetEvent("auctionPerformed", nil)
-	return shim.SuccessWithPriority([]byte("Auction success. THIS TRANSACTION HAS HIGH PRIORITY WITH THE ORDERER"),
+	return shim.SuccessWithPriorityBypassPhantoReadCheck([]byte("Auction success. THIS TRANSACTION HAS HIGH PRIORITY WITH THE ORDERER and bypasses PHANTOM_READ_CONFLICT"),
 		pb.Priority_HIGH)
 }
 
@@ -3127,8 +3130,7 @@ func (chaincode *EnergyChaincode) publishSensorDataTestContext(stub shim.Chainco
 	//verify if data is still valid based on timestamp
 	currentTime := uint64(time.Now().Unix())
 	if currentTime > timestamp+acceptedDelay {
-		//return shim.Error("The data timestamp is too old!")
-		println("The data timestamp is too old!")
+		return shim.Error("The data timestamp is too old!")
 	}
 
 	//check if caller is a sensor
@@ -3245,8 +3247,8 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 	currentTimestamp := uint64(time.Now().Unix())
 	printf("t1: %d\n", t1)
 	printf("Current timestamp: %d\n", currentTimestamp)
-	if t1 > currentTimestamp+acceptedDelay {
-		return shim.Error(fmt.Sprintf("t1: %d MUST be less or equal than the CURRENT TIME %d + the accepted delay of %ds", t1, currentTimestamp, acceptedDelay))
+	if t1 > currentTimestamp+acceptedClockDrift {
+		return shim.Error(fmt.Sprintf("t1: %d MUST be less or equal than the CURRENT TIME %d + the accepted clock drift of %ds", t1, currentTimestamp, acceptedClockDrift))
 	}
 
 	//get Meter MSP and MeterID
@@ -3376,7 +3378,7 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 
 	successMessage := fmt.Sprintf("%+v\n successfully available for selling by the seller %s%s with the smart meter of ID: %s%s", energyByTypeGeneratedKWH, sellerInfo.MspIDSeller, sellerInfo.SellerID, sellerInfo.MspIDSmartMeter, sellerInfo.SmartMeterID)
 
-	return shim.SuccessWithPriority([]byte(successMessage), pb.Priority_HIGH)
+	return shim.SuccessWithPriorityBypassPhantoReadCheck([]byte(successMessage), pb.Priority_MEDIUM)
 	//return shim.Error("Testing time")
 }
 

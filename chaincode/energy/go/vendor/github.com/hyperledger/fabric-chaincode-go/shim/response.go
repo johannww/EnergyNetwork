@@ -25,7 +25,8 @@ func Success(payload []byte) pb.Response {
 		Status:  OK,
 		Payload: payload,
 		//JOHANN PRIORITY
-		Priority: pb.Priority_MEDIUM,
+		Priority:               pb.Priority_MEDIUM,
+		BypassPhantomReadCheck: false,
 	}
 }
 
@@ -35,14 +36,24 @@ func SuccessWithPriority(payload []byte, transactionPriority pb.Priority) pb.Res
 		Status:  OK,
 		Payload: payload,
 		//JOHANN PRIORITY
-		Priority: transactionPriority,
+		Priority:               transactionPriority,
+		BypassPhantomReadCheck: false,
 	}
+}
+
+//SuccessWithPriorityBypassPhantoReadCheck with setting transaction priority and
+//bypassing PHANTOM_READ_CONFLICT verification at commit time
+func SuccessWithPriorityBypassPhantoReadCheck(payload []byte, transactionPriority pb.Priority) pb.Response {
+	response := SuccessWithPriority(payload, transactionPriority)
+	response.BypassPhantomReadCheck = true
+	return response
 }
 
 // Error ...
 func Error(msg string) pb.Response {
 	return pb.Response{
-		Status:  ERROR,
-		Message: msg,
+		Status:                 ERROR,
+		Message:                msg,
+		BypassPhantomReadCheck: false,
 	}
 }
