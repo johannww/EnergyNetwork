@@ -310,7 +310,7 @@ index 2475e329c..23f91c7e6 100644
 +	return highestActionPriority, nil
 +}
 diff --git a/vendor/github.com/hyperledger/fabric-chaincode-go/shim/response.go b/vendor/github.com/hyperledger/fabric-chaincode-go/shim/response.go
-index abe628669..5e3c3c172 100644
+index abe628669..8921f13de 100644
 --- a/vendor/github.com/hyperledger/fabric-chaincode-go/shim/response.go
 +++ b/vendor/github.com/hyperledger/fabric-chaincode-go/shim/response.go
 @@ -24,13 +24,36 @@ func Success(payload []byte) pb.Response {
@@ -334,9 +334,9 @@ index abe628669..5e3c3c172 100644
 +	}
 +}
 +
-+//SuccessWithPriorityBypassPhantoReadCheck with setting transaction priority and
++//SuccessWithPriorityBypassPhantomReadCheck with setting transaction priority and
 +//bypassing PHANTOM_READ_CONFLICT verification at commit time
-+func SuccessWithPriorityBypassPhantoReadCheck(payload []byte, transactionPriority pb.Priority) pb.Response {
++func SuccessWithPriorityBypassPhantomReadCheck(payload []byte, transactionPriority pb.Priority) pb.Response {
 +	response := SuccessWithPriority(payload, transactionPriority)
 +	response.BypassPhantomReadCheck = true
 +	return response

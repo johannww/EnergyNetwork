@@ -1105,7 +1105,7 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 
 	successMessage := fmt.Sprintf("%+v\n successfully available for selling by the seller %s%s with the smart meter of ID: %s%s", energyByTypeGeneratedKWH, sellerInfo.MspIDSeller, sellerInfo.SellerID, sellerInfo.MspIDSmartMeter, sellerInfo.SmartMeterID)
 
-	return shim.SuccessWithPriorityBypassPhantoReadCheck([]byte(successMessage), pb.Priority_MEDIUM)
+	return shim.SuccessWithPriorityBypassPhantomReadCheck([]byte(successMessage), pb.Priority_MEDIUM)
 	//return shim.Error("Testing time")
 }
 
@@ -1575,7 +1575,7 @@ func (chaincode *EnergyChaincode) auction(stub shim.ChaincodeStubInterface) pb.R
 	//return shim.Success(nil)
 	//ensuring that applications are warned when auction is performed
 	stub.SetEvent("auctionPerformed", nil)
-	return shim.SuccessWithPriorityBypassPhantoReadCheck([]byte("Auction success. THIS TRANSACTION HAS HIGH PRIORITY WITH THE ORDERER and bypasses PHANTOM_READ_CONFLICT"),
+	return shim.SuccessWithPriorityBypassPhantomReadCheck([]byte("Auction success. THIS TRANSACTION HAS HIGH PRIORITY WITH THE ORDERER and bypasses PHANTOM_READ_CONFLICT"),
 		pb.Priority_HIGH)
 }
 
@@ -3378,7 +3378,7 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 
 	successMessage := fmt.Sprintf("%+v\n successfully available for selling by the seller %s%s with the smart meter of ID: %s%s", energyByTypeGeneratedKWH, sellerInfo.MspIDSeller, sellerInfo.SellerID, sellerInfo.MspIDSmartMeter, sellerInfo.SmartMeterID)
 
-	return shim.SuccessWithPriorityBypassPhantoReadCheck([]byte(successMessage), pb.Priority_MEDIUM)
+	return shim.SuccessWithPriorityBypassPhantomReadCheck([]byte(successMessage), pb.Priority_MEDIUM)
 	//return shim.Error("Testing time")
 }
 

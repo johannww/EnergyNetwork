@@ -41,9 +41,9 @@ func SuccessWithPriority(payload []byte, transactionPriority pb.Priority) pb.Res
 	}
 }
 
-//SuccessWithPriorityBypassPhantoReadCheck with setting transaction priority and
+//SuccessWithPriorityBypassPhantomReadCheck with setting transaction priority and
 //bypassing PHANTOM_READ_CONFLICT verification at commit time
-func SuccessWithPriorityBypassPhantoReadCheck(payload []byte, transactionPriority pb.Priority) pb.Response {
+func SuccessWithPriorityBypassPhantomReadCheck(payload []byte, transactionPriority pb.Priority) pb.Response {
 	response := SuccessWithPriority(payload, transactionPriority)
 	response.BypassPhantomReadCheck = true
 	return response
