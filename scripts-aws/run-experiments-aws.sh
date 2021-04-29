@@ -193,7 +193,8 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/seller-jar-with-dependencies.jar -msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1'"'"
     pidsSeller[$i]=$!
     #(sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1'"'") 
-    #pidsBuyer[$i]=$!
+    sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom -jar target/buyer-jar-with-dependencies.jar -msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1'"'"
+    pidsBuyer[$i]=$!
 done
 
 unset MSYS_NO_PATHCONV
@@ -224,7 +225,7 @@ echo -e $blueback \## "Waiting for AppSensorTest, AppSellerTest and AppBuyerTest
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     wait ${pidsSensor[$i]}
     wait ${pidsSeller[$i]}
-    #wait ${pidsBuyer[$i]}
+    wait ${pidsBuyer[$i]}
 done
 echo -e $blueback \## "Applications ended "   $resetvid 
 
