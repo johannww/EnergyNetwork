@@ -96,26 +96,51 @@ applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml get-value appl
 #
 echo -e $blueback \## "Creating AWS instances for peers, orderers and applications"$resetvid
 > $BASE_DIR/aws-hosts.yaml
+mkdir -p $BASE_DIR/tmp
 for ((org=0; org<$numberOfOrgs; org+=1)); do
     orgName=${matrix[$org,name]}
     nPeers=${matrix[$org,peer-quantity]}
 
     for ((i=1; i<=$nPeers; i+=1)); do
-        orgsPeerHosts[peer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh peer$i-$orgName $peerInstanceType)
-        echo "peer$i-$orgName: \"${orgsPeerHosts[peer$i-$orgName]}\"" >> $BASE_DIR/aws-hosts.yaml 
+        $SCRIPT_DIR/create-energy-network-instance.sh peer$i-$orgName $peerInstanceType > $BASE_DIR/tmp/peer$i-$orgName &
     done
 
     nOrds=${matrix[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do 
-        orgsOrdHosts[orderer$i-$orgName]=$($SCRIPT_DIR/create-energy-network-instance.sh orderer$i-$orgName $ordererInstanceType)
-        echo "orderer$i-$orgName: \"${orgsOrdHosts[orderer$i-$orgName]}\"" >> $BASE_DIR/aws-hosts.yaml 
+        $SCRIPT_DIR/create-energy-network-instance.sh orderer$i-$orgName $ordererInstanceType > $BASE_DIR/tmp/orderer$i-$orgName & 
     done
 done
 
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
-    applicationsHosts[$i]=$($SCRIPT_DIR/create-energy-network-instance.sh application$i $applicationsInstanceType)
-    echo "application$i: \"${applicationsHosts[$i]}\"" >> $BASE_DIR/aws-hosts.yaml 
+    $SCRIPT_DIR/create-energy-network-instance.sh application$i $applicationsInstanceType > $BASE_DIR/tmp/application$i &
 done
+
+echo -e $blueback \# "Waiting for AWS instances creation" $resetvid
+wait
+
+echo -e $blueback \# "Getting instances IPs and writing to file aws-hosts.yaml" $resetvid
+for ((org=0; org<$numberOfOrgs; org+=1)); do
+    orgName=${matrix[$org,name]}
+    nPeers=${matrix[$org,peer-quantity]}
+
+    for ((i=1; i<=$nPeers; i+=1)); do
+        orgsPeerHosts[peer$i-$orgName]=$(cat $BASE_DIR/tmp/peer$i-$orgName)
+        echo "peer$i-$orgName: \"${orgsPeerHosts[peer$i-$orgName]}\"" >> $BASE_DIR/aws-hosts.yaml
+    done
+
+    nOrds=${matrix[$org,orderer-quantity]}
+    for ((i=1; i<=$nOrds; i+=1)); do
+        orgsOrdHosts[orderer$i-$orgName]=$(cat $BASE_DIR/tmp/orderer$i-$orgName)
+        echo "orderer$i-$orgName: \"${orgsOrdHosts[orderer$i-$orgName]}\"" >> $BASE_DIR/aws-hosts.yaml
+    done
+done
+
+for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
+    applicationsHosts[$i]=$(cat $BASE_DIR/tmp/application$i)
+    echo "application$i: \"${applicationsHosts[$i]}\"" >> $BASE_DIR/aws-hosts.yaml
+done
+
+rm -r $BASE_DIR/tmp
 
 #
 # GENERATING THE TLS CERTIFICATE AUTHORITIY
@@ -196,37 +221,37 @@ if [ $registerAndEnroll != "false" ]; then
         echo -e $blueback \##Registering admins $orgName certificates $resetvid
         nAdms=${matrix[$l,admin-quantity]}
         for ((i=1; i<=$nAdms; i+=1)); do
-            registerByRole $orgName "admin" "admin$i" '"hf.Registrar.Roles=client,peer,orderer",hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,energy.admin=true:ecert,energy.init=true:ecert,energy.paymentcompany=true:ecert,energy.utility=true:ecert,role=2'
+            registerByRole $orgName "admin" "admin$i" '"hf.Registrar.Roles=client,peer,orderer",hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,energy.admin=true:ecert,energy.init=true:ecert,energy.paymentcompany=true:ecert,energy.utility=true:ecert,role=2' &
         done
 
         echo -e $blueback \##Registering clients $orgName certificates $resetvid
         nClients=${matrix[$l,client-quantity]}
         for ((i=1; i<=$nClients; i+=1)); do
-        registerByRole $orgName "client" "client$i" ""
+        registerByRole $orgName "client" "client$i" "" &
         done
 
         echo -e $blueback \##Registering orderers $orgName certificates $resetvid
         nOrds=${matrix[$l,orderer-quantity]}
         for ((i=1; i<=$nOrds; i+=1)); do
-            registerByRole $orgName "orderer" "orderer$i" ""
+            registerByRole $orgName "orderer" "orderer$i" "" &
         done
 
         echo -e $blueback \##Registering peers $orgName certificates $resetvid
         nPeers=${matrix[$l,peer-quantity]}
         for ((i=1; i<=$nPeers; i+=1)); do
-            registerByRole $orgName "peer" "peer$i" ""
+            registerByRole $orgName "peer" "peer$i" "" &
         done
 
         echo -e $blueback \##Registering buyers $orgName certificates $resetvid
         nBuyers=${matrix[$l,buyer-quantity]}
         for ((i=1; i<=$nBuyers; i+=1)); do
-            registerByRole $orgName "buyer" "buyer$i" 'energy.buyer=true:ecert'
+            registerByRole $orgName "buyer" "buyer$i" 'energy.buyer=true:ecert' &
         done
 
         echo -e $blueback \##Registering sellers $orgName certificates $resetvid
         nSellers=${matrix[$l,seller-quantity]}
         for ((i=1; i<=$nSellers; i+=1)); do
-            registerByRole $orgName "seller" "seller$i" 'energy.seller=true:ecert'
+            registerByRole $orgName "seller" "seller$i" 'energy.seller=true:ecert' &
         done
 
         echo -e $blueback \##Registering sensors $orgName certificates $resetvid
@@ -236,11 +261,15 @@ if [ $registerAndEnroll != "false" ]; then
             yRandom=$((1 + $RANDOM % 100))
             zRandom=$((1 + $RANDOM % 100))
             radius=1000 #$((40 + $RANDOM % 80))
-            registerByRole $orgName "sensor" "sensor$i" "energy.sensor=true:ecert,energy.x=$xRandom:ecert,energy.y=$yRandom:ecert,energy.z=$zRandom:ecert,energy.radius=$radius:ecert"
+            registerByRole $orgName "sensor" "sensor$i" "energy.sensor=true:ecert,energy.x=$xRandom:ecert,energy.y=$yRandom:ecert,energy.z=$zRandom:ecert,energy.radius=$radius:ecert" &
         done
 
     done
 fi
+
+
+echo -e $blueback \##"Waiting for certificates register" $resetvid
+wait
 
 #
 # ENROLLING ADMINS, CLIENTS, ORDERERS AND PEERS
@@ -313,41 +342,44 @@ if [ $registerAndEnroll != "false" ]; then
         echo -e $blueback \##Downloading clients $orgName certificates $resetvid
         nClients=${matrix[$l,client-quantity]}
         for ((i=1; i<=$nClients; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "client" "client$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "client" "client$i" $enrollType &
         done
 
 
         echo -e $blueback \##Downloading orderers $orgName certificates $resetvid
         nOrds=${matrix[$l,orderer-quantity]}
         for ((i=1; i<=$nOrds; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "orderer" "orderer$i" $enrollType ${orgsOrdHosts[orderer$i-$orgName]}
+            enrollByRole $orgName $orgNameUpper "orderer" "orderer$i" $enrollType ${orgsOrdHosts[orderer$i-$orgName]} &
         done
 
         echo -e $blueback \##Downloading peers $orgName certificates $resetvid
         nPeers=${matrix[$l,peer-quantity]}
         for ((i=1; i<=$nPeers; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "peer" "peer$i" $enrollType ${orgsPeerHosts[peer$i-$orgName]}
+            enrollByRole $orgName $orgNameUpper "peer" "peer$i" $enrollType ${orgsPeerHosts[peer$i-$orgName]} &
         done
 
         echo -e $blueback \##Downloading buyers $orgName certificates $resetvid
         nBuyers=${matrix[$l,buyer-quantity]}
         for ((i=1; i<=$nBuyers; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "buyer" "buyer$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "buyer" "buyer$i" $enrollType &
         done
 
         echo -e $blueback \##Downloading sellers $orgName certificates $resetvid
         nSellers=${matrix[$l,seller-quantity]}
         for ((i=1; i<=$nSellers; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "seller" "seller$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "seller" "seller$i" $enrollType &
         done
 
         echo -e $blueback \##Downloading sensors $orgName certificates $resetvid
         nSensors=${matrix[$l,sensor-quantity]}
         for ((i=1; i<=$nSensors; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "sensor" "sensor$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "sensor" "sensor$i" $enrollType &
         done
     done
 fi
+
+echo -e $blueback \##"Waiting for certificates enroll" $resetvid
+wait
 
 #
 # GENERATING ORGS INSTITUTIONAL MSP FOLDER
@@ -428,7 +460,7 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     for ((i=1; i<=$nOrds; i+=1)); do
         scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${orgsOrdHosts[orderer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
 
-        sshCmd ${orgsOrdHosts[orderer$i-$ORG_NAME]} << EOF
+        (sshCmd ${orgsOrdHosts[orderer$i-$ORG_NAME]} << EOF
             export ORG_NAME=${matrix[$l,name]}
             export ORG_NAME_UPPER=\${ORG_NAME^^}
             export ORDERER_NUMBER=$i
@@ -447,6 +479,7 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
             sleep 1s
             docker logs orderer\$ORDERER_NUMBER-\$ORG_NAME  
 EOF
+) &
     done
 done
 
@@ -458,7 +491,7 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     nPeers=${matrix[$l,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
         scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${orgsPeerHosts[peer$i-$ORG_NAME]}:/home/ubuntu/EnergyNetwork/
-        sshCmd ${orgsPeerHosts[peer$i-$ORG_NAME]} << EOF
+        (sshCmd ${orgsPeerHosts[peer$i-$ORG_NAME]} << EOF
             export COMPOSE_PROJECT_NAME="fabric"
             export ORG_NAME=${matrix[$l,name]}
             export ORG_NAME_UPPER=\${ORG_NAME^^}
@@ -479,8 +512,12 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
             sleep 1s
             docker logs peer\$PEER_NUMBER-\$ORG_NAME
 EOF
+) &
     done
 done
+
+echo -e $blueback \# "Waiting for peers and orderers creation" $resetvid
+wait
 
 #
 # CREATING ONE CLI FOR ONE ADMIN OF EACH ORGANIZATION
@@ -572,6 +609,7 @@ while true; do
         orgNameUpper=$orgName
         orgNameLower=${orgNameUpper,,}
         orgIndex=$(findOrgIndexByName $orgNameLower)
+        x=$orgIndex
 
         enrollType=${matrix[$orgIndex,msptype]}
         if [ $enrollType != "idemix" ]; then
@@ -581,31 +619,35 @@ while true; do
 
         nPeers=${matrix[$orgIndex,peer-quantity]}
         for ((i=1; i<=nPeers; i+=1)); do
-            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer$i-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer channel join -b /tmp/hyperledger/$orgNameLower/admin1/$channelID.block    
+            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer$i-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer channel join -b /tmp/hyperledger/$orgNameLower/admin1/$channelID.block
         done
+
 
         #
         # Setting ANCHOR PEERS for organizations in the channel
         #
         if (( nPeers > 0 )); then
-            echo -e $blueback \# "Setting peer1-$orgNameLower as ANCHOR PEER in org $orgNameLower for channel $channelID" $resetvid
-            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli bash -c "mkdir -p art && peer channel fetch config art/config_block.pb -o $defaultOrderer:7050 -c $channelID --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --connTimeout 100s" 
+            (echo -e $blueback \# "Setting peer1-$orgNameLower as ANCHOR PEER in org $orgNameLower for channel $channelID" $resetvid
+            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli bash -c "mkdir -p art$x && peer channel fetch config art$x/config_block.pb -o $defaultOrderer:7050 -c $channelID --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --connTimeout 100s"
 
-            docker exec cli configtxlator proto_decode --input art/config_block.pb --type common.Block --output art/config_block.json 
-            docker exec cli bash -c "jq .data.data[0].payload.data.config art/config_block.json > art/config.json"
-            docker exec cli cp art/config.json art/config_copy.json
-            #fazer pra todos os peers????
-            docker exec cli bash -c "jq '.channel_group.groups.Application.groups.'$orgNameUpper'.values += {\"AnchorPeers\":{\"mod_policy\": \"Admins\",\"value\":{\"anchor_peers\": [{\"host\": \"'peer1-$orgNameLower'\",\"port\": 7051}]},\"version\": \"0\"}}' art/config_copy.json > art/modified_config.json"
-            docker exec cli configtxlator proto_encode --input art/config.json --type common.Config --output art/config.pb 
-            docker exec cli configtxlator proto_encode --input art/modified_config.json --type common.Config --output art/modified_config.pb 
-            docker exec cli configtxlator compute_update --channel_id canal --original art/config.pb --updated art/modified_config.pb --output art/config_update.pb 
-            docker exec cli configtxlator proto_decode --input art/config_update.pb --type common.ConfigUpdate --output art/config_update.json
-            docker exec cli bash -c "echo '{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"'$channelID'\",\"type\":2}},\"data\":{\"config_update\":'\$(cat art/config_update.json)'}}}' | jq . > art/config_update_in_envelope.json"
-            docker exec cli configtxlator proto_encode --input art/config_update_in_envelope.json --type common.Envelope --output art/config_update_in_envelope.pb
+            docker exec cli configtxlator proto_decode --input art$x/config_block.pb --type common.Block --output art$x/config_block.json
+            docker exec cli bash -c "jq .data.data[0].payload.data.config art$x/config_block.json > art$x/config.json"
+            docker exec cli cp art$x/config.json art$x/config_copy.json
+            docker exec cli bash -c "jq '.channel_group.groups.Application.groups.'$orgNameUpper'.values += {\"AnchorPeers\":{\"mod_policy\": \"Admins\",\"value\":{\"anchor_peers\": [{\"host\": \"'peer1-$orgNameLower'\",\"port\": 7051}]},\"version\": \"0\"}}' art$x/config_copy.json > art$x/modified_config.json"
+            docker exec cli configtxlator proto_encode --input art$x/config.json --type common.Config --output art$x/config.pb
+            docker exec cli configtxlator proto_encode --input art$x/modified_config.json --type common.Config --output art$x/modified_config.pb
+            docker exec cli configtxlator compute_update --channel_id canal --original art$x/config.pb --updated art$x/modified_config.pb --output art$x/config_update.pb
+            docker exec cli configtxlator proto_decode --input art$x/config_update.pb --type common.ConfigUpdate --output art$x/config_update.json
+            docker exec cli bash -c "echo '{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"'$channelID'\",\"type\":2}},\"data\":{\"config_update\":'\$(cat art$x/config_update.json)'}}}' | jq . > art$x/config_update_in_envelope.json"
+            docker exec cli configtxlator proto_encode --input art$x/config_update_in_envelope.json --type common.Envelope --output art$x/config_update_in_envelope.pb
 
-            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer channel update -f art/config_update_in_envelope.pb -c canal -o $defaultOrderer:7050 --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --connTimeout 100s 
+            docker exec -e CORE_PEER_CLIENT_CONNTIMEOUT=100s -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=${orgsPeerHosts[peer1-$orgNameLower]}:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer channel update -f art$x/config_update_in_envelope.pb -c canal -o $defaultOrderer:7050 --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --connTimeout 100s
+            ) &
         fi 
     done 
+
+    echo -e $blueback "Waiting for setting anchor peers" $resetvid
+    wait
 
     #
     # PACKING THE CHAINCODE
@@ -722,7 +764,7 @@ echo -e $blueback "Creating cli-applications-ubuntu container in application ins
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem energy-applications.tar.gz ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork
     scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem {hyperledger.tar.gz,$BASE_DIR/docker-compose-aws.yml} ubuntu@${applicationsHosts[$i]}:/home/ubuntu/EnergyNetwork/
-    sshCmd ${applicationsHosts[$i]} << EOF
+    (sshCmd ${applicationsHosts[$i]} << EOF
         export COMPOSE_PROJECT_NAME="fabric"
         export BINDABLE_PORT=0
         export APPLICATION_INSTANCE_ID=$i
@@ -737,11 +779,14 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
         docker exec cli-applications mvn package -DskipTests -P seller
         docker exec cli-applications mvn package -DskipTests -P sensor
 EOF
+) &
 done
 
 rm energy-applications.tar.gz
 rm hyperledger.tar.gz
 
+echo -e $blueback "Waiting for applications creation" $resetvid
+wait
 echo -e $blueback "The AWS machines' hostnames were saved to $BASE_DIR/aws-hosts.yaml" $resetvid
 
 
