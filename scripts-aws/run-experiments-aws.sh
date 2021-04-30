@@ -91,6 +91,11 @@ parseTestConfigMap sensors "${sensorsKeyValues[@]}"
 parseTestConfigMap sellers "${sellersKeyValues[@]}" 
 parseTestConfigMap buyers "${buyersKeyValues[@]}" 
 
+echo -e $blueback  "Copying 'docker-compose-aws.yml' to $testFolder" $resetvid 
+cp $BASE_DIR/docker-compose-aws.yml $testFolder/
+echo -e $blueback  "Copying 'aws-hosts-instances.yaml' to $testFolder" $resetvid 
+cp $BASE_DIR/aws-hosts-instances.yaml $testFolder/
+
 sshCmd() {
     local host=$1
     shift 
