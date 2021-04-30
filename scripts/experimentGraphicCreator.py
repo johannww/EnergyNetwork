@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy
 
 units = {}
+DOCKER_STATS_PERIOD_SEC=0.5
 MOVING_AVERAGE_QUANTITY=20
 CONTAINER_METRICS_QUANTITY=4
 CPU = "Cpu"
@@ -106,22 +107,23 @@ def syncStats():
     for metric in stats[entity]:
       stats[entity][metric] = [0 for i in range(0, biggestLen-len(stats[entity][metric]))] + stats[entity][metric]
 
-def plotMovingAverage(plt, cpuMetrics):
+def plotMovingAverage(plt, axisValues, cpuMetrics):
   movingAverages = [0.0 for i in range(0, MOVING_AVERAGE_QUANTITY)]
   for i in range(MOVING_AVERAGE_QUANTITY, len(cpuMetrics)):
     movingAverages.append(movingAverages[-1] + cpuMetrics[i]/MOVING_AVERAGE_QUANTITY 
     - cpuMetrics[i-MOVING_AVERAGE_QUANTITY]/MOVING_AVERAGE_QUANTITY)
-  plt.plot(movingAverages, 'r', label="{} second Moving Average ".format(MOVING_AVERAGE_QUANTITY))
+  plt.plot(axisValues, movingAverages, 'r', label="{} second Moving Average ".format(MOVING_AVERAGE_QUANTITY))
   plt.legend()
 
 def saveEntitiesGraphs():
   for entityName in stats:
     for metric in stats[entityName]:
       plt.title("{} - {} - {}".format(entityName, metric, units[metric]["type"]))
-      plt.plot(stats[entityName][metric], label="CPU %")
+      axisValues=numpy.arange(0, len(stats[entityName][metric])/2, DOCKER_STATS_PERIOD_SEC)
+      plt.plot(axisValues, stats[entityName][metric], label="CPU %")
       plt.xlabel("Time (s)")
       if metric == CPU:
-        plotMovingAverage(plt, stats[entityName][metric])
+        plotMovingAverage(plt, axisValues, stats[entityName][metric])
       plt.ylabel("{} ({})".format(metric, units[metric]["unit"]))
       plt.grid(True)
       #plt.ylim(bottom=-0.001)
