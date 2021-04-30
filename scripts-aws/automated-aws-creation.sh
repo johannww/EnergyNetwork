@@ -95,6 +95,9 @@ applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml get-value appl
 # INITATING THE AWS INSTANCES FOR EVERY PEER AND ORDERER
 #
 echo -e $blueback \## "Creating AWS instances for peers, orderers and applications"$resetvid
+echo "peer-instance-type: $peerInstanceType" > $BASE_DIR/aws-hosts-instances.yaml
+echo "orderer-instance-type: $ordererInstanceType" >> $BASE_DIR/aws-hosts-instances.yaml
+echo "application-instance-type: $applicationsInstanceType" >> $BASE_DIR/aws-hosts-instances.yaml
 > $BASE_DIR/aws-hosts.yaml
 mkdir -p $BASE_DIR/tmp
 for ((org=0; org<$numberOfOrgs; org+=1)); do
