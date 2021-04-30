@@ -80,7 +80,7 @@ public class AppPeriodicAuction {
                 String.format("%s%s%s-connection-tls.json", awsPrefix, dockerPrefix, mspLower));
         
         // Configure the gateway connection used to access the network.
-        Gateway.Builder builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile).discovery(dockerPrefix.length()>0);
+        Gateway.Builder builder = Gateway.createBuilder().identity(identity).networkConfig(networkConfigFile).discovery((dockerPrefix.length() > 0) || (awsPrefix.length() > 0));
         
 
         // publishing the buybid
