@@ -466,7 +466,7 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
             export ORDERER_NUMBER=$i
             export ORDERER_HOST=${orgsOrdHosts[orderer$i-$ORG_NAME]}
             export BINDABLE_PORT=0
-            export LOGGING_LEVEL=info
+            export LOGGING_LEVEL=warn
             cd EnergyNetwork
             tar -xzf hyperledger.tar.gz
             rm hyperledger.tar.gz
