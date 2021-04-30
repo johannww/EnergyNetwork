@@ -126,7 +126,7 @@ public class AppSensorForTest {
 
         cmd = testParser.parseArgs(args);
         String cliApplicationStr = System.getenv("APPLICATION_INSTANCE_ID");
-        int cliApplicationId = cliApplicationStr.length() > 0 ? Integer.parseInt(cliApplicationStr) : 0;
+        int cliApplicationId = cliApplicationStr != null ? Integer.parseInt(cliApplicationStr) : 0;
         int THREAD_NUM = Integer.parseInt(cmd.getOptionValue("sensors"));
         String msp = cmd.getOptionValue("msp");
         String baseDir = cmd.getOptionValue("basedir");
