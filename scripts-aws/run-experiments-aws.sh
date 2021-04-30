@@ -100,7 +100,6 @@ sshCmd() {
 sshCmdBg() {
     local host=$1
     shift 
-    #testJohann &
     ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$host "$@" &
 }
 
@@ -253,5 +252,16 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     done
 done
 
+echo -e $blueback \## "Downloading applications logs "   $resetvid
+mkdir -p $testFolder/logs-applications
+for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
+    mkdir -p $testFolder/logs-applications/application$i
+    scp -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@${hosts[application$i]}:/home/ubuntu/EnergyNetwork/test-reports/$testNumber/* $testFolder/logs-applications/application$i &
+done
+
 echo -e $blueback \## "Plotting graphs to folder test-reports/$testNumber/plots"   $resetvid 
 python $SCRIPT_DIR/../scripts/experimentGraphicCreator.py $BASE_DIR/test-reports/$testNumber
+
+echo -e $blueback \## "Waiting for applications logs" $resetvid
+wait
+echo -e $blueback \## "Done!" $resetvid
