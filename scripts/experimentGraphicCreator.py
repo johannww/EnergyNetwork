@@ -6,6 +6,7 @@ import os
 import yaml
 import statistics
 import matplotlib.pyplot as plt
+import numpy
 
 units = {}
 MOVING_AVERAGE_QUANTITY=20
@@ -86,6 +87,19 @@ def getBiggestStatLen():
       biggestLen = statLen
   return biggestLen
 
+
+def saveCpuMemAverages(fileName):
+  with open(testReportDir+"/"+fileName, 'w') as file:
+    for entityName in stats:
+      file.write("{}:\n".format(entityName))
+      for metric in stats[entityName]:
+        if metric == CPU or metric == MEM:
+          file.write("  {}:\n".format(metric))
+          file.write("    Max: {} {}\n".format(numpy.max(stats[entityName][metric]), units[metric]["unit"]))
+          file.write("    Min: {} {}\n".format(numpy.min(stats[entityName][metric]), units[metric]["unit"]))
+          file.write("    Average: {} {}\n".format(numpy.average(stats[entityName][metric]), units[metric]["unit"]))
+          file.write("    Standard deviation: {} {}\n".format(numpy.std(stats[entityName][metric]), units[metric]["unit"]))
+    
 def syncStats():
   biggestLen = getBiggestStatLen()
   for entity in stats:
@@ -139,6 +153,11 @@ for org in parsedPreConfig["organizations"]:
 
   for appNumber in reversed(range(1, parsedPreConfig["applications-quantity"]+1)):
     mountEntityStats("cli-applications-{}".format(str(appNumber)))
+
+
+# calculate the average of processing and mem usage
+# of each machine and print to file instances-mem-cpu-averages.txt
+saveCpuMemAverages("instances-mem-cpu-averages.txt")
 
 # sync the stats time by adding '0' to the beggining of them
 # until all stats are same length
