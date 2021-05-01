@@ -124,6 +124,7 @@ EOF
 ) >> $testFolder/initial-containers-filesystem-sizes.txt
 
         sshCmdBg ${hosts[orderer$i-$orgName]} docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" orderer$i-$orgName > $testFolder/stats-orderer$i-$orgName.txt
+        if [[ $org == 0 && $i == 1 ]]; then echo 'start-time: $(date +"%T.%N")' > $testFolder/test-start-and-finish.txt; fi
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
@@ -231,7 +232,10 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     wait ${pidsSeller[$i]}
     wait ${pidsBuyer[$i]}
 done
-echo -e $blueback \## "Applications ended "   $resetvid 
+echo 'end-time: $(date +"%T.%N")' >> $testFolder/test-start-and-finish.txt
+echo -e $blueback \## "Applications ended "   $resetvid
+
+echo -e $blueback \## "Test start and finish times in 'test-start-and-finish.txt' "   $resetvid
 
 echo -e $blueback \## "Killing containers logging jobs"   $resetvid 
 jobs -p | xargs kill
@@ -241,17 +245,22 @@ sshCmd ${hosts[application1]} docker stop cli-applications
 
 
 echo -e $blueback \## "final containers sizes "   $resetvid 
+echo -e $blueback \## "Downloading peers and orderers logs "   $resetvid
+mkdir -p $testFolder/logs-orderers
+mkdir -p $testFolder/logs-peers
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
     orgName=${parsedConfigMeFirst[$org,name]}
 
     nOrds=${parsedConfigMeFirst[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
+        sshCmd ${hosts[orderer$i-$orgName]} docker logs orderer$i-$orgName 2> $testFolder/logs-orderers/log-orderer$i-$orgName.txt &
         echo -n "orderer$i-$orgName: "  >> $testFolder/final-containers-filesystem-sizes.txt
         sshCmd ${hosts[orderer$i-$orgName]} docker exec orderer$i-$orgName du / -s >> $testFolder/final-containers-filesystem-sizes.txt
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
+        sshCmd ${hosts[peer$i-$orgName]} docker logs peer$i-$orgName 2> $testFolder/logs-peers/log-peer$i-$orgName.txt &
         echo -n "peer$i-$orgName: "  >> $testFolder/final-containers-filesystem-sizes.txt
         sshCmd ${hosts[peer$i-$orgName]} docker exec peer$i-$orgName du / -s >> $testFolder/final-containers-filesystem-sizes.txt
     done
@@ -267,6 +276,6 @@ done
 echo -e $blueback \## "Plotting graphs to folder test-reports/$testNumber/plots"   $resetvid 
 python $SCRIPT_DIR/../scripts/experimentGraphicCreator.py $BASE_DIR/test-reports/$testNumber
 
-echo -e $blueback \## "Waiting for applications logs" $resetvid
+echo -e $blueback \## "Waiting for logs" $resetvid
 wait
 echo -e $blueback \## "Done!" $resetvid
