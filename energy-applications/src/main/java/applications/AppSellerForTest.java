@@ -268,8 +268,8 @@ public class AppSellerForTest {
                                 transaction = contract.createTransaction("registerSellerTestContext");
                                 transaction.submit(sellerFullName, "2", "2");
                             } catch (Exception e) {
-                                System.out.println(String
-                                        .format("Seller %d probably already registered: " + e.getMessage(), threadNum));
+                                //System.out.println(String
+                                        //.format("Seller %d probably already registered: " + e.getMessage(), threadNum));
                             }
 
                             long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0,
@@ -300,7 +300,7 @@ public class AppSellerForTest {
                                     transactionTimeWait += System.currentTimeMillis() - startTransaction;
 
                                 } catch (Exception e) {
-                                    System.out.println("Failed energy generation submission: " + e.getMessage());
+                                    //System.out.println("Failed energy generation submission: " + e.getMessage());
                                     invalidatedEnergyGenerations++;
                                 }
 
@@ -317,7 +317,7 @@ public class AppSellerForTest {
                                     publishedBids.add(new PublishedSellBid(publish + 1,
                                             Double.parseDouble(cmd.getOptionValue("energyquantitykwh"))));
                                 } catch (Exception e) {
-                                    System.out.println("Failed SellBid submission: " + e.getMessage());
+                                    //System.out.println("Failed SellBid submission: " + e.getMessage());
                                     invalidatedSellbid++;
                                 }
 
@@ -346,7 +346,7 @@ public class AppSellerForTest {
                 threads[i].join();
         }
 
-        System.out.println("ENDED!");
+        System.out.println("ENDED in timestamp: " + Long.toString(System.currentTimeMillis() / 1000L));
         System.exit(0);
     }
 }

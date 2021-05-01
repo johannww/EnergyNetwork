@@ -270,7 +270,7 @@ public class AppSensorForTest {
                 threads[i].join();
         }
 
-        System.out.println("ENDED!");
+        System.out.println("ENDED in timestamp: " + Long.toString(System.currentTimeMillis() / 1000L));
         System.exit(0);
     }
 }

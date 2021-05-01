@@ -291,8 +291,7 @@ public class AppBuyerForTest {
 
                 final int finalI = i;
                 Random rand = new Random();
-                int randomInterval = (interval - thirtyPercentInterval)
-                        + rand.nextInt(2 * thirtyPercentInterval);
+                int randomInterval = (interval - thirtyPercentInterval) + rand.nextInt(2 * thirtyPercentInterval);
                 threads[i] = new Thread() {
 
                     int threadNum = finalI;
@@ -317,46 +316,51 @@ public class AppBuyerForTest {
                             threadsBarrier.await();
                             startExecution = System.currentTimeMillis();
 
-                            int publish = 0;
+                            int publish = 0, failedBuyBids = 0;
                             // adding a little randomness to start time to avoid 100% sync among threads
                             Thread.sleep(new Random().nextInt(500) + 2000);
+                            Transaction transaction;
                             while (publish < maxPublish) {
                                 // Request token to Payment Company
                                 // String token = requestPaymentToken(buyerFullName);
                                 String token = simluateGetToken();
 
                                 // Submit BuyBid
-                                startTransaction = System.currentTimeMillis();
-                                String paymentCompanyId = cmd.getOptionValue("paymentcompanyid");
-                                String utilityCompanyId = "UFSC";
-                                String energyQuantity = cmd.getOptionValue("energyquantitykwh");
-                                String pricePerKwh = cmd.getOptionValue("priceperkwh");
-                                String energyType = cmd.getOptionValue("energytype");
-                                Transaction transaction = contract.createTransaction("registerBuyBid");
-                                transaction.submit(paymentCompanyId, token, utilityCompanyId, energyQuantity,
-                                        pricePerKwh, energyType);
-                                transactionTimeWait += System.currentTimeMillis() - startTransaction;
-                                // Request BuyBid validation to the Payment Company
-                                // requestBuyBidValidation(token, buyerFullName);
+                                try {
+                                    startTransaction = System.currentTimeMillis();
+                                    String paymentCompanyId = cmd.getOptionValue("paymentcompanyid");
+                                    String utilityCompanyId = "UFSC";
+                                    String energyQuantity = cmd.getOptionValue("energyquantitykwh");
+                                    String pricePerKwh = cmd.getOptionValue("priceperkwh");
+                                    String energyType = cmd.getOptionValue("energytype");
+                                    transaction = contract.createTransaction("registerBuyBid");
+                                    transaction.submit(paymentCompanyId, token, utilityCompanyId, energyQuantity,
+                                            pricePerKwh, energyType);
+                                    transactionTimeWait += System.currentTimeMillis() - startTransaction;
+                                    // Request BuyBid validation to the Payment Company
+                                    // requestBuyBidValidation(token, buyerFullName);
 
-                                TransactionContext transactionContext = transaction.getTransactionContext();
+                                    TransactionContext transactionContext = transaction.getTransactionContext();
 
-                                String transactionID = transaction.getTransactionId();
+                                    String transactionID = transaction.getTransactionId();
 
-                                // get Ipk and signing identity to send to utility company for verification
-                                IssuerPublicKey ipk = idemixId.getIpk().toProto();
-                                IdemixSigningIdentity signingId = (IdemixSigningIdentity) transactionContext
-                                        .getSigningIdentity();
+                                    // get Ipk and signing identity to send to utility company for verification
+                                    IssuerPublicKey ipk = idemixId.getIpk().toProto();
+                                    IdemixSigningIdentity signingId = (IdemixSigningIdentity) transactionContext
+                                            .getSigningIdentity();
 
-                                // signingId.getNym();
+                                    // signingId.getNym();
 
-                                publishedBids.add(new PublishedBuyBid(paymentCompanyId, token, transactionID, ipk,
-                                        signingId, Double.parseDouble(energyQuantity)));
+                                    publishedBids.add(new PublishedBuyBid(paymentCompanyId, token, transactionID, ipk,
+                                            signingId, Double.parseDouble(energyQuantity)));
 
-                                // simulate BuyBid validation
-                                Thread.sleep(rand.nextInt(thirtyPercentInterval));
-                                transaction = contract.createTransaction("validateBuyBidTestContext");
-                                transaction.submit(paymentCompanyId, token);
+                                    // simulate BuyBid validation
+                                    Thread.sleep(rand.nextInt(thirtyPercentInterval));
+                                    transaction = contract.createTransaction("validateBuyBidTestContext");
+                                    transaction.submit(paymentCompanyId, token);
+                                } catch (Exception e) {
+                                    failedBuyBids++;
+                                }
 
                                 publish++;
                                 Thread.sleep(randomInterval);
@@ -389,7 +393,7 @@ public class AppBuyerForTest {
             throw new Error(String.format("Program exiting with exception: " + e.getMessage()));
         }
 
-        System.out.println("ENDED!");
+        System.out.println("ENDED in timestamp: " + Long.toString(System.currentTimeMillis() / 1000L));
         System.exit(0);
     }
 }
