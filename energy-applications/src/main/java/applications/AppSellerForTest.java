@@ -197,6 +197,7 @@ public class AppSellerForTest {
         String msp = cmd.getOptionValue("msp");
         String baseDir = cmd.getOptionValue("basedir");
         int interval = Integer.parseInt(cmd.getOptionValue("publishinterval"));
+        int thirtyPercentInterval = interval / 3;
         int maxPublish = Integer.parseInt(cmd.getOptionValue("publishquantity"));
         paymentUrl = cmd.getOptionValue("paymentcompanyurl");
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
@@ -243,6 +244,9 @@ public class AppSellerForTest {
             for (int i = 1; i <= THREAD_NUM; i++) {
 
                 final int finalI = i;
+                Random rand = new Random();
+                int randomInterval = (interval - thirtyPercentInterval)
+                        + rand.nextInt(2 * thirtyPercentInterval);
                 threads[i] = new Thread() {
 
                     int threadNum = finalI;
@@ -281,7 +285,7 @@ public class AppSellerForTest {
                             // adding a little randomness to start time to avoid 100% sync among threads
                             Thread.sleep(new Random().nextInt(500) + 10000);
                             startExecution = System.currentTimeMillis();
-                            int invalidatedEnergyGenerations = 0, invalidatedSellbid =0;
+                            int invalidatedEnergyGenerations = 0, invalidatedSellbid = 0;
                             while (publish < maxPublish) {
 
                                 try {
@@ -300,6 +304,8 @@ public class AppSellerForTest {
                                     invalidatedEnergyGenerations++;
                                 }
 
+                                Thread.sleep(rand.nextInt(thirtyPercentInterval));
+
                                 try {
 
                                     // calling register sellbid transaction
@@ -314,9 +320,9 @@ public class AppSellerForTest {
                                     System.out.println("Failed SellBid submission: " + e.getMessage());
                                     invalidatedSellbid++;
                                 }
-                                
+
                                 publish++;
-                                Thread.sleep(interval);
+                                Thread.sleep(randomInterval);
                             }
 
                             totalExecutionTime = System.currentTimeMillis() - startExecution;

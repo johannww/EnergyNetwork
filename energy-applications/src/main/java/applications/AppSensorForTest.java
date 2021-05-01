@@ -132,10 +132,11 @@ public class AppSensorForTest {
         String baseDir = cmd.getOptionValue("basedir");
         Long unit = Long.parseLong(cmd.getOptionValue("unit"));
         int interval = Integer.parseInt(cmd.getOptionValue("publishinterval"));
+        int thirtyPercentInterval = interval / 3;
         int maxPublish = Integer.parseInt(cmd.getOptionValue("publishquantity"));
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
         String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
-    
+
         // parsing sensor params
         ArgParserSensor sensorParser = new ArgParserSensor();
         Gateway.Builder builder;
@@ -180,13 +181,17 @@ public class AppSensorForTest {
 
                     int threadNum = finalI;
                     // CommandLine cmd;
+                    Random rand = new Random();
+                    int randomInterval = (interval - thirtyPercentInterval)
+                            + rand.nextInt(2 * thirtyPercentInterval);
 
                     public void run() {
 
                         // Create a gateway connection
                         try {
 
-                            String sensorFullName = String.format("sensor%d-%s", threadNum + (cliApplicationId-1) * THREAD_NUM,
+                            String sensorFullName = String.format("sensor%d-%s",
+                                    threadNum + (cliApplicationId - 1) * THREAD_NUM,
                                     cmd.getOptionValue("msp").toLowerCase());
 
                             long totalExecutionTime = 0, startExecution = 0, transactionTimeWait = 0,
@@ -206,11 +211,11 @@ public class AppSensorForTest {
                             startExecution = System.currentTimeMillis();
 
                             // Publish SmartData
-                            try {
-                                int publish = 0;
-                                // adding a little randomness to start time to avoid 100% sync among threads
-                                Thread.sleep(new Random().nextInt(500) + 2000);
-                                while (publish < maxPublish) {
+                            int publish = 0;
+                            // adding a little randomness to start time to avoid 100% sync among threads
+                            Thread.sleep(new Random().nextInt(500) + 2000);
+                            while (publish < maxPublish) {
+                                try {
                                     SmartData smartData = getRandomSmartData(unit, threadNum, publish);
 
                                     startTransaction = System.currentTimeMillis();
@@ -223,12 +228,13 @@ public class AppSensorForTest {
 
                                     // System.out.println(new String(transactionResult, StandardCharsets.UTF_8));
                                     publish++;
-                                    Thread.sleep(interval);
+                                    Thread.sleep(randomInterval);
+                                } catch (Exception e) {
+                                    System.out.println("Exception in thread " + Integer.toString(threadNum));
+                                    //e.printStackTrace();
                                 }
-                            } catch (Exception e) {
-                                System.out.println("Exception in thread " + Integer.toString(threadNum));
-                                e.printStackTrace();
                             }
+
                             totalExecutionTime = System.currentTimeMillis() - startExecution;
 
                             // signature time testing

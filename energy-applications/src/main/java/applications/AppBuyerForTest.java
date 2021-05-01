@@ -226,6 +226,7 @@ public class AppBuyerForTest {
         String msp = cmd.getOptionValue("msp");
         String baseDir = cmd.getOptionValue("basedir");
         int interval = Integer.parseInt(cmd.getOptionValue("publishinterval"));
+        int thirtyPercentInterval = interval / 3;
         int maxPublish = Integer.parseInt(cmd.getOptionValue("publishquantity"));
         paymentUrl = cmd.getOptionValue("paymentcompanyurl");
         utilityUrl = cmd.getOptionValue("utilityurl");
@@ -289,6 +290,9 @@ public class AppBuyerForTest {
             for (int i = 1; i <= THREAD_NUM; i++) {
 
                 final int finalI = i;
+                Random rand = new Random();
+                int randomInterval = (interval - thirtyPercentInterval)
+                        + rand.nextInt(2 * thirtyPercentInterval);
                 threads[i] = new Thread() {
 
                     int threadNum = finalI;
@@ -299,7 +303,8 @@ public class AppBuyerForTest {
                             // Obtain a smart contract deployed on the network.
 
                             List<PublishedBuyBid> publishedBids = new LinkedList<PublishedBuyBid>();
-                            String buyerFullName = String.format("buyer%d-%s", threadNum + (cliApplicationId-1) * THREAD_NUM,
+                            String buyerFullName = String.format("buyer%d-%s",
+                                    threadNum + (cliApplicationId - 1) * THREAD_NUM,
                                     cmd.getOptionValue("msp").toLowerCase());
                             registerAuctionEventListener(contract, publishedBids, buyerFullName);
 
@@ -349,11 +354,12 @@ public class AppBuyerForTest {
                                         signingId, Double.parseDouble(energyQuantity)));
 
                                 // simulate BuyBid validation
+                                Thread.sleep(rand.nextInt(thirtyPercentInterval));
                                 transaction = contract.createTransaction("validateBuyBidTestContext");
                                 transaction.submit(paymentCompanyId, token);
 
                                 publish++;
-                                Thread.sleep(interval);
+                                Thread.sleep(randomInterval);
                             }
                             totalExecutionTime = System.currentTimeMillis() - startExecution;
 
