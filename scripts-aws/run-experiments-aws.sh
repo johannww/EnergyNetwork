@@ -124,7 +124,7 @@ EOF
 ) >> $testFolder/initial-containers-filesystem-sizes.txt
 
         sshCmdBg ${hosts[orderer$i-$orgName]} docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" orderer$i-$orgName > $testFolder/stats-orderer$i-$orgName.txt
-        if [[ $org == 0 && $i == 1 ]]; then echo 'start-time: $(date +"%T.%N")' > $testFolder/test-start-and-finish.txt; fi
+        if [[ $org == 0 && $i == 1 ]]; then echo 'start-time: '$(date +"%T.%N") > $testFolder/test-start-and-finish.txt; fi
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
@@ -160,44 +160,22 @@ done
 loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
 loggingFlag2="-Dlog4j.configuration=log4j.properties"
 
-echo -e $blueback \## "Starting Utility and PaymentCompany applications "   $resetvid 
-#cd energy-applications
-#nohup mvn exec:java@utility -Dexec.mainClass="applications.AppUtility" -Dexec.args="-msp UFSC -port 80 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem"  > $BASE_DIR/test-reports/AppUtility.out 2>&1 &
-#nohup mvn exec:java@payment -Dexec.mainClass="applications.AppPaymentCompany" -Dexec.args="-msp UFSC -port 81 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" > $BASE_DIR/test-reports/AppPaymentCompany.out 2>&1 &
+#echo -e $blueback \## "Starting Utility and PaymentCompany applications "   $resetvid 
+
 export MSYS_NO_PATHCONV=1
-#docker exec cli-applications bash -c 'nohup mvn exec:java@utility -Dexec.mainClass="applications.AppUtility" -Dexec.args="-msp UFSC -port 80 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppUtility.out 2>&1 &'
-#docker exec cli-applications bash -c 'nohup mvn exec:java@payment -Dexec.mainClass="applications.AppPaymentCompany" -Dexec.args="-msp UFSC -port 81 --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --dockernetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPaymentCompany.out 2>&1 &'
 unset MSYS_NO_PATHCONV
 
 echo -e $blueback \## "Starting sensors, sellers and buyers applications"   $resetvid 
-#nohup mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp ${parsedTestCfg[sensors,msp]} --basedir $BASE_DIR --sensors ${parsedTestCfg[sensors,quantity]} --unit ${parsedTestCfg[sensors,unit]} --publishinterval ${parsedTestCfg[sensors,publishinterval]} --publishquantity ${parsedTestCfg[sensors,publishquantity]}" > $BASE_DIR/test-reports/AppSensorForTest.out 2>&1 &
-#nohup mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp ${parsedTestCfg[sellers,msp]}  --basedir $BASE_DIR --sellers ${parsedTestCfg[sellers,quantity]} --publishinterval ${parsedTestCfg[sellers,publishinterval]}  --publishquantity ${parsedTestCfg[sellers,publishquantity]} --paymentcompanyurl $paymentUrl" > $BASE_DIR/test-reports/AppSellerForTest.out 2>&1 &
-#nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp ${parsedTestCfg[buyers,msp]} --basedir $BASE_DIR --buyers ${parsedTestCfg[buyers,quantity]} --publishinterval ${parsedTestCfg[buyers,publishinterval]}  --publishquantity ${parsedTestCfg[buyers,publishquantity]} --utilityurl $utilityUrl --paymentcompanyurl $paymentUrl" > $BASE_DIR/test-reports/AppBuyerForTest.out 2>&1 &
 export MSYS_NO_PATHCONV=1
-#declare -A parsedTestCfg
-#parsedTestCfg[sensors,msp]=UFSC
-#parsedTestCfg[sensors,quantity]=1
-#parsedTestCfg[sensors,unit]=3834792229
-#parsedTestCfg[sensors,publishinterval]=5000
-#parsedTestCfg[sensors,publishquantity]=3
-#parsedTestCfg[sellers,msp]=UFSC
-#parsedTestCfg[sellers,quantity]=1
-#parsedTestCfg[sellers,publishinterval]=5000
-#parsedTestCfg[sellers,publishquantity]=3
-#paymentUrl=localhost
-#auctionInterval=30000
-#testNumber=2
-#i=1
-#hosts[application1]=ec2-13-233-0-244.ap-south-1.compute.amazonaws.com
 
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
-    #sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'mvn exec:java@sensor-test -Dexec.mainClass="applications.AppSensorForTest" -Dexec.args="-msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'"
+
     sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/sensor-jar-with-dependencies.jar -msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'"
     pidsSensor[$i]=$!
-    #sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'mvn exec:java@seller-test -Dexec.mainClass="applications.AppSellerForTest" -Dexec.args="-msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1'"'"
+
     sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/seller-jar-with-dependencies.jar -msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1'"'"
     pidsSeller[$i]=$!
-    #(sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'nohup mvn exec:java@buyer-test -Dexec.mainClass="applications.AppBuyerForTest" -Dexec.args="-msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --awsnetwork" '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1'"'") 
+
     sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -Djava.security.egd=file:/dev/./urandom -jar target/buyer-jar-with-dependencies.jar -msp '${parsedTestCfg[buyers,msp]}' --basedir /EnergyNetwork --buyers '${parsedTestCfg[buyers,quantity]}' --publishinterval '${parsedTestCfg[buyers,publishinterval]}'  --publishquantity '${parsedTestCfg[buyers,publishquantity]}' --utilityurl '$utilityUrl' --paymentcompanyurl '$paymentUrl' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppBuyerForTest'$i'.out 2>&1'"'"
     pidsBuyer[$i]=$!
 done
@@ -205,26 +183,13 @@ done
 unset MSYS_NO_PATHCONV
 
 echo -e $blueback \## "Starting PeriodicAuction application"  $resetvid 
-#nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval $auctionInterval --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" > $BASE_DIR/test-reports/AppPeriodicAuction.out 2>&1 &
-
-#nohup mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval 50000 --certificate $BASE_DIR/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey $BASE_DIR/hyperledger/ufsc/admin1/msp/keystore/key.pem" &
 
 export MSYS_NO_PATHCONV=1
-#sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'mvn exec:java@auction -Dexec.mainClass="applications.AppPeriodicAuction" -Dexec.args="-msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --awsnetwork" '$loggingFlag1' '$loggingFlag2' > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
-
 sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/auction-jar-with-dependencies.jar -msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
 unset MSYS_NO_PATHCONV
 #cd ..
 #get metrics from peers and orederes metric servers
 #wget nos metrics servers
-
-# print system and hardware information
-#echo -e $blueback \## "Environment characteristics on PHYSICAL MACHINE! "   $resetvid 
-#cat /proc/cpuinfo > $testFolder/cpuinfo.txt
-#cat /proc/meminfo > $testFolder/meminfo.txt
-#df -h > $testFolder/df.txt
-#echo '$OSTYPE:' $OSTYPE >$testFolder/operating-system.txt
-#comandos que garantem preferencia de processos... 
 
 echo -e $blueback \## "Waiting for AppSensorTest, AppSellerTest and AppBuyerTest to finish "   $resetvid 
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
@@ -232,7 +197,7 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     wait ${pidsSeller[$i]}
     wait ${pidsBuyer[$i]}
 done
-echo 'end-time: $(date +"%T.%N")' >> $testFolder/test-start-and-finish.txt
+echo 'end-time: '$(date +"%T.%N") >> $testFolder/test-start-and-finish.txt
 echo -e $blueback \## "Applications ended "   $resetvid
 
 echo -e $blueback \## "Test start and finish times in 'test-start-and-finish.txt' "   $resetvid
