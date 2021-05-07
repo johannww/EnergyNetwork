@@ -188,7 +188,8 @@ unset MSYS_NO_PATHCONV
 echo -e $blueback \## "Starting PeriodicAuction application"  $resetvid 
 
 export MSYS_NO_PATHCONV=1
-sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/auction-jar-with-dependencies.jar -msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/ufsc/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/ufsc/admin1/msp/keystore/key.pem --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
+auctionCallerMsp=${parsedTestCfg[sensors,msp],,}
+sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/auction-jar-with-dependencies.jar -msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/'$auctionCallerMsp'/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/'$auctionCallerMsp'/admin1/msp/keystore/key.pem --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
 unset MSYS_NO_PATHCONV
 #cd ..
 #get metrics from peers and orederes metric servers
@@ -222,14 +223,14 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
 
     nOrds=${parsedConfigMeFirst[$org,orderer-quantity]}
     for ((i=1; i<=$nOrds; i+=1)); do
-        sshCmd ${hosts[orderer$i-$orgName]} docker logs --since "$testDurationSecs"s orderer$i-$orgName 2> $testFolder/logs-orderers/log-orderer$i-$orgName.txt &
+        sshCmd ${hosts[orderer$i-$orgName]} docker logs --since "$testDurationSec"s orderer$i-$orgName 2> $testFolder/logs-orderers/log-orderer$i-$orgName.txt &
         echo -n "orderer$i-$orgName: "  >> $testFolder/final-containers-filesystem-sizes.txt
         sshCmd ${hosts[orderer$i-$orgName]} docker exec orderer$i-$orgName du / -s >> $testFolder/final-containers-filesystem-sizes.txt
     done
 
     nPeers=${parsedConfigMeFirst[$org,peer-quantity]}
     for ((i=1; i<=$nPeers; i+=1)); do
-        sshCmd ${hosts[peer$i-$orgName]} docker logs --since "$testDurationSecs"s peer$i-$orgName 2> $testFolder/logs-peers/log-peer$i-$orgName.txt &
+        sshCmd ${hosts[peer$i-$orgName]} docker logs --since "$testDurationSec"s peer$i-$orgName 2> $testFolder/logs-peers/log-peer$i-$orgName.txt &
         echo -n "peer$i-$orgName: "  >> $testFolder/final-containers-filesystem-sizes.txt
         sshCmd ${hosts[peer$i-$orgName]} docker exec peer$i-$orgName du / -s >> $testFolder/final-containers-filesystem-sizes.txt
     done
