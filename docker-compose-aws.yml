@@ -70,6 +70,8 @@ services:
             - CORE_METRICS_PROVIDER=prometheus #mudanca johann
             - CORE_PEER_DISCOVERY_ENABLED=true
             - CORE_PEER_DISCOVERY_ORGMEMBERSALLOWEDACCESS=true
+            - CORE_PEER_LIMITS_CONCURRENCY_ENDORSERSERVICE=10000 #mudanca johann
+            - CORE_PEER_LIMITS_CONCURRENCY_DELIVERSERVICE=10000 #mudanca johann
         volumes:
             - //var/run:/host/var/run
             - /home/ubuntu/EnergyNetwork/hyperledger/${ORG_NAME}/peer${PEER_NUMBER}:/tmp/hyperledger/${ORG_NAME}/peer${PEER_NUMBER}
@@ -101,6 +103,7 @@ services:
             - ORDERER_METRICS_PROVIDER=prometheus
             - ORDERER_ADMIN_LISTENADDRESS=0.0.0.0:9443 #to use ADMIN SERVER
             - ORDERER_CHANNELPARTICIPATION_ENABLED=true #to use ADMIN SERVER
+            - ORDERER_GENERAL_CLUSTER_SENDBUFFERSIZE=10 #JOHANN
         volumes:
             - /home/ubuntu/EnergyNetwork/hyperledger/${ORG_NAME}/orderer${ORDERER_NUMBER}:/tmp/hyperledger/${ORG_NAME}/orderer${ORDERER_NUMBER}
         ports:
