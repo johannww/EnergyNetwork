@@ -168,37 +168,37 @@ if [ $registerAndEnroll != "false" ]; then
         echo -e $blueback \##Registering admins $orgName certificates $resetvid
         nAdms=${matrix[$l,admin-quantity]}
         for ((i=1; i<=$nAdms; i+=1)); do
-            registerByRole $orgName "admin" "admin$i" '"hf.Registrar.Roles=client,peer,orderer",hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,energy.admin=true:ecert,energy.init=true:ecert,energy.paymentcompany=true:ecert,energy.utility=true:ecert,role=2'
+            registerByRole $orgName "admin" "admin$i" '"hf.Registrar.Roles=client,peer,orderer",hf.Registrar.Attributes=*,hf.Revoker=true,hf.GenCRL=true,admin=true:ecert,energy.admin=true:ecert,energy.init=true:ecert,energy.paymentcompany=true:ecert,energy.utility=true:ecert,role=2' &
         done
 
         echo -e $blueback \##Registering clients $orgName certificates $resetvid
         nClients=${matrix[$l,client-quantity]}
         for ((i=1; i<=$nClients; i+=1)); do
-        registerByRole $orgName "client" "client$i" ""
+        registerByRole $orgName "client" "client$i" "" &
         done
 
         echo -e $blueback \##Registering orderers $orgName certificates $resetvid
         nOrds=${matrix[$l,orderer-quantity]}
         for ((i=1; i<=$nOrds; i+=1)); do
-            registerByRole $orgName "orderer" "orderer$i" ""
+            registerByRole $orgName "orderer" "orderer$i" "" &
         done
 
         echo -e $blueback \##Registering peers $orgName certificates $resetvid
         nPeers=${matrix[$l,peer-quantity]}
         for ((i=1; i<=$nPeers; i+=1)); do
-            registerByRole $orgName "peer" "peer$i" ""
+            registerByRole $orgName "peer" "peer$i" "" &
         done
 
         echo -e $blueback \##Registering buyers $orgName certificates $resetvid
         nBuyers=${matrix[$l,buyer-quantity]}
         for ((i=1; i<=$nBuyers; i+=1)); do
-            registerByRole $orgName "buyer" "buyer$i" 'energy.buyer=true:ecert'
+            registerByRole $orgName "buyer" "buyer$i" 'energy.buyer=true:ecert' &
         done
 
         echo -e $blueback \##Registering sellers $orgName certificates $resetvid
         nSellers=${matrix[$l,seller-quantity]}
         for ((i=1; i<=$nSellers; i+=1)); do
-            registerByRole $orgName "seller" "seller$i" 'energy.seller=true:ecert'
+            registerByRole $orgName "seller" "seller$i" 'energy.seller=true:ecert' &
         done
 
         echo -e $blueback \##Registering sensors $orgName certificates $resetvid
@@ -208,11 +208,14 @@ if [ $registerAndEnroll != "false" ]; then
             yRandom=$((1 + $RANDOM % 100))
             zRandom=$((1 + $RANDOM % 100))
             radius=1000 #$((40 + $RANDOM % 80))
-            registerByRole $orgName "sensor" "sensor$i" "energy.sensor=true:ecert,energy.x=$xRandom:ecert,energy.y=$yRandom:ecert,energy.z=$zRandom:ecert,energy.radius=$radius:ecert"
+            registerByRole $orgName "sensor" "sensor$i" "energy.sensor=true:ecert,energy.x=$xRandom:ecert,energy.y=$yRandom:ecert,energy.z=$zRandom:ecert,energy.radius=$radius:ecert" &
         done
 
     done
 fi
+
+echo -e $blueback \##"Waiting for certificates register" $resetvid
+wait
 
 #
 # ENROLLING ADMINS, CLIENTS, ORDERERS AND PEERS
@@ -282,41 +285,44 @@ if [ $registerAndEnroll != "false" ]; then
         echo -e $blueback \##Downloading clients $orgName certificates $resetvid
         nClients=${matrix[$l,client-quantity]}
         for ((i=1; i<=$nClients; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "client" "client$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "client" "client$i" $enrollType &
         done
 
 
         echo -e $blueback \##Downloading orderers $orgName certificates $resetvid
         nOrds=${matrix[$l,orderer-quantity]}
         for ((i=1; i<=$nOrds; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "orderer" "orderer$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "orderer" "orderer$i" $enrollType &
         done
 
         echo -e $blueback \##Downloading peers $orgName certificates $resetvid
         nPeers=${matrix[$l,peer-quantity]}
         for ((i=1; i<=$nPeers; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "peer" "peer$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "peer" "peer$i" $enrollType &
         done
 
         echo -e $blueback \##Downloading buyers $orgName certificates $resetvid
         nBuyers=${matrix[$l,buyer-quantity]}
         for ((i=1; i<=$nBuyers; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "buyer" "buyer$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "buyer" "buyer$i" $enrollType &
         done
 
         echo -e $blueback \##Downloading sellers $orgName certificates $resetvid
         nSellers=${matrix[$l,seller-quantity]}
         for ((i=1; i<=$nSellers; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "seller" "seller$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "seller" "seller$i" $enrollType &
         done
 
         echo -e $blueback \##Downloading sensors $orgName certificates $resetvid
         nSensors=${matrix[$l,sensor-quantity]}
         for ((i=1; i<=$nSensors; i+=1)); do
-            enrollByRole $orgName $orgNameUpper "sensor" "sensor$i" $enrollType
+            enrollByRole $orgName $orgNameUpper "sensor" "sensor$i" $enrollType &
         done
     done
 fi
+
+echo -e $blueback \##"Waiting for certificates enroll" $resetvid
+wait
 
 #
 # GENERATING ORGS INSTITUTIONAL MSP FOLDER
@@ -521,6 +527,7 @@ while true; do
         orgNameUpper=$orgName
         orgNameLower=${orgNameUpper,,}
         orgIndex=$(findOrgIndexByName $orgNameLower)
+        x=$orgIndex
 
         enrollType=${matrix[$orgIndex,msptype]}
         if [ $enrollType != "idemix" ]; then
@@ -536,22 +543,22 @@ while true; do
         # Setting ANCHOR PEERS for organizations in the channel
         #
         if (( nPeers > 0 )); then
-            echo -e $blueback \# "Setting peer1-$orgNameLower as ANCHOR PEER in org $orgNameLower for channel $channelID" $resetvid
-            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli bash -c "mkdir -p art && peer channel fetch config art/config_block.pb -o $defaultOrderer:7050 -c $channelID --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem"
+            (echo -e $blueback \# "Setting peer1-$orgNameLower as ANCHOR PEER in org $orgNameLower for channel $channelID" $resetvid
+            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli bash -c "mkdir -p art$x && peer channel fetch config art$x/config_block.pb -o $defaultOrderer:7050 -c $channelID --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem"
 
-            docker exec cli configtxlator proto_decode --input art/config_block.pb --type common.Block --output art/config_block.json 
-            docker exec cli bash -c "jq .data.data[0].payload.data.config art/config_block.json > art/config.json"
-            docker exec cli cp art/config.json art/config_copy.json
-            #fazer pra todos os peers????
-            docker exec cli bash -c "jq '.channel_group.groups.Application.groups.'$orgNameUpper'.values += {\"AnchorPeers\":{\"mod_policy\": \"Admins\",\"value\":{\"anchor_peers\": [{\"host\": \"'peer1-$orgNameLower'\",\"port\": 7051}]},\"version\": \"0\"}}' art/config_copy.json > art/modified_config.json"
-            docker exec cli configtxlator proto_encode --input art/config.json --type common.Config --output art/config.pb 
-            docker exec cli configtxlator proto_encode --input art/modified_config.json --type common.Config --output art/modified_config.pb 
-            docker exec cli configtxlator compute_update --channel_id canal --original art/config.pb --updated art/modified_config.pb --output art/config_update.pb 
-            docker exec cli configtxlator proto_decode --input art/config_update.pb --type common.ConfigUpdate --output art/config_update.json
-            docker exec cli bash -c "echo '{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"'$channelID'\",\"type\":2}},\"data\":{\"config_update\":'\$(cat art/config_update.json)'}}}' | jq . > art/config_update_in_envelope.json"
-            docker exec cli configtxlator proto_encode --input art/config_update_in_envelope.json --type common.Envelope --output art/config_update_in_envelope.pb
+            docker exec cli configtxlator proto_decode --input art$x/config_block.pb --type common.Block --output art$x/config_block.json
+            docker exec cli bash -c "jq .data.data[0].payload.data.config art$x/config_block.json > art$x/config.json"
+            docker exec cli cp art$x/config.json art$x/config_copy.json
+            docker exec cli bash -c "jq '.channel_group.groups.Application.groups.'$orgNameUpper'.values += {\"AnchorPeers\":{\"mod_policy\": \"Admins\",\"value\":{\"anchor_peers\": [{\"host\": \"'peer1-$orgNameLower'\",\"port\": 7051}]},\"version\": \"0\"}}' art$x/config_copy.json > art$x/modified_config.json"
+            docker exec cli configtxlator proto_encode --input art$x/config.json --type common.Config --output art$x/config.pb
+            docker exec cli configtxlator proto_encode --input art$x/modified_config.json --type common.Config --output art$x/modified_config.pb
+            docker exec cli configtxlator compute_update --channel_id canal --original art$x/config.pb --updated art$x/modified_config.pb --output art$x/config_update.pb
+            docker exec cli configtxlator proto_decode --input art$x/config_update.pb --type common.ConfigUpdate --output art$x/config_update.json
+            docker exec cli bash -c "echo '{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"'$channelID'\",\"type\":2}},\"data\":{\"config_update\":'\$(cat art$x/config_update.json)'}}}' | jq . > art$x/config_update_in_envelope.json"
+            docker exec cli configtxlator proto_encode --input art$x/config_update_in_envelope.json --type common.Envelope --output art$x/config_update_in_envelope.pb
 
-            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer channel update -f art/config_update_in_envelope.pb -c canal -o $defaultOrderer:7050 --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
+            docker exec -e CORE_PEER_LOCALMSPID=$orgNameUpper -e CORE_PEER_LOCALMSPTYPE=$enrollType -e CORE_PEER_ADDRESS=peer1-$orgNameLower:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/$orgNameLower/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer channel update -f art$x/config_update_in_envelope.pb -c canal -o $defaultOrderer:7050 --tls --cafile /tmp/hyperledger/$orgNameLower/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem
+            ) &
         fi 
     done 
 
@@ -577,7 +584,7 @@ while true; do
     echo -e $blueback "!!!!!!!WE ONLY INSTALL GO CHAINCODES!!!!!!!!" $resetvid
     ###read -p "PRESS ENTER TO CONTINUE"
     for orgName in ${ORGS_IN_CHANNEL[@]} ; do
-        orgNameUpper=$orgName
+        (orgNameUpper=$orgName
         orgNameLower=${orgNameUpper,,}
         orgIndex=$(findOrgIndexByName $orgNameLower)
         adminMSP="/tmp/hyperledger/$orgNameLower/admin1/msp"
@@ -627,8 +634,10 @@ while true; do
             done
 
         fi
-
+        ) &
     done
+
+    wait
 
     #
     # COMMITING THE CHAINCODES!
