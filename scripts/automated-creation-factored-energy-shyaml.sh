@@ -478,13 +478,17 @@ cp $BASE_DIR/generated-connection-tls/*.*  $BASE_DIR/energy-applications/cfgs/
 # MAKING PEERS OF INCLUDED ORGS JOIN
 # INSTALLING AND COMMMITING CHAINCODES
 #
+exit="false"
 while true; do
-    read -p "Do you wish create any channel? [yN]" yn
-    case $yn in
-        [Yy]* ) read -p   "$(echo -e $blueback "MAKE SURE YOU HAVE CONFIGURED THE CHANNEL IN generated-config/configtx.yaml (PRESS ENTER TO CONTINUE)" $resetvid)";;
-        [Nn]* ) break;;
-        * ) echo "Please answer yes or no."; break;;
-    esac
+    while true; do
+        read -p "Do you wish create any channel? [yN]" yn
+        case $yn in
+            [Yy]* ) read -p   "$(echo -e $blueback "MAKE SURE YOU HAVE CONFIGURED THE CHANNEL IN generated-config-aws/configtx.yaml (PRESS ENTER TO CONTINUE)" $resetvid)"; break;;
+            [Nn]* ) exit="true"; break;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+    if [ $exit = "true" ]; then break; fi
     ###read -p "Type the desired channel Profile name. Ex:  SampleMultiMSPRaftAppChannel, SampleSingleMSPChannel, etc: " profile
     profile="SampleMultiMSPRaftAppChannel"
     ###read -p "Type the desired channel ID (lower case): " channelID
