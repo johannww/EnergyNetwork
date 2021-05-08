@@ -785,6 +785,7 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
         docker exec cli-applications mvn package -DskipTests -P buyer
         docker exec cli-applications mvn package -DskipTests -P seller
         docker exec cli-applications mvn package -DskipTests -P sensor
+        docker exec cli-applications mvn package -DskipTests -P chaincode-metrics
 EOF
 ) &
 done

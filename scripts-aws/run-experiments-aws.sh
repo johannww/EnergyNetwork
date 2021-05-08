@@ -189,7 +189,7 @@ echo -e $blueback \## "Starting PeriodicAuction application"  $resetvid
 
 export MSYS_NO_PATHCONV=1
 auctionCallerMsp=${parsedTestCfg[sensors,msp],,}
-sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/auction-jar-with-dependencies.jar -msp UFSC --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/'$auctionCallerMsp'/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/'$auctionCallerMsp'/admin1/msp/keystore/key.pem --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
+sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/auction-jar-with-dependencies.jar -msp '${auctionCallerMsp^^}' --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/'$auctionCallerMsp'/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/'$auctionCallerMsp'/admin1/msp/keystore/key.pem --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppPeriodicAuction.out 2>&1'"'"
 unset MSYS_NO_PATHCONV
 #cd ..
 #get metrics from peers and orederes metric servers
@@ -209,6 +209,9 @@ echo -e $blueback \## "Test start and finish times in 'test-start-and-finish.txt
 
 echo -e $blueback \## "Killing containers logging jobs"   $resetvid 
 jobs -p | xargs kill
+
+echo -e $blueback \## "Writing the chaincode function average times to chaincode-averages.json "   $resetvid
+sshCmdBg ${hosts[application1]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/chaincode-metrics-jar-with-dependencies.jar -msp '${auctionCallerMsp^^}' --auctioninterval '$auctionInterval' --certificate /EnergyNetwork/hyperledger/'$auctionCallerMsp'/admin1/msp/signcerts/cert.pem --privatekey /EnergyNetwork/hyperledger/'$auctionCallerMsp'/admin1/msp/keystore/key.pem --awsnetwork'"'" | sed '/WARNING*/d' > $testFolder/chaincode-averages.json
 
 echo -e $blueback \## "Stopping periodic auction "   $resetvid 
 sshCmd ${hosts[application1]} docker stop cli-applications
