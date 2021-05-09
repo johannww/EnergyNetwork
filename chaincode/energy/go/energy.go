@@ -356,7 +356,7 @@ func getActiveSensorsList(stub shim.ChaincodeStubInterface, mspID string) ([]str
 		return nil, nil, err
 	}
 
-	var activeSensorKeys []string
+	var activeSensorIDs []string
 	var activeSensorsDataList []st.ActiveSensor
 	var activityData st.ActiveSensor
 
@@ -366,13 +366,13 @@ func getActiveSensorsList(stub shim.ChaincodeStubInterface, mspID string) ([]str
 		if err != nil {
 			return nil, nil, err
 		}
-		activeSensorKeys = append(activeSensorKeys, queryResult.Key)
 		err = proto.Unmarshal(queryResult.Value, &activityData)
-		activeSensorsDataList = append(activeSensorsDataList, activityData)
 		//println("NameSpace: " + queryResult.Namespace)
 		//println("Key: " + queryResult.Key)
 		//printf("%+v\n", activityData)
 		if activityData.IsActive == true {
+			activeSensorIDs = append(activeSensorIDs, activityData.SensorID)
+			activeSensorsDataList = append(activeSensorsDataList, activityData)
 			printf("%+v\n", activityData)
 		} else {
 			println("SENSOR NOT ACTIVE!")
@@ -382,7 +382,7 @@ func getActiveSensorsList(stub shim.ChaincodeStubInterface, mspID string) ([]str
 	stateIterator.Close()
 
 	//returning the state keys for each sensor, followed a list of ActiveSensor
-	return activeSensorKeys, activeSensorsDataList, nil
+	return activeSensorIDs, activeSensorsDataList, nil
 
 }
 
