@@ -2395,11 +2395,7 @@ func (chaincode *EnergyChaincode) Invoke(stub shim.ChaincodeStubInterface) pb.Re
 	return shim.Error("Invalid invoke function name")
 }
 
-func main() {
-	chaincode := new(EnergyChaincode)
-
-	averageFunctionTimes = make(map[string]*FunctionStats)
-
+func initFuncMap(chaincode *EnergyChaincode) {
 	functionMap = map[string]func(shim.ChaincodeStubInterface, []string) pb.Response{
 		"getAverageFunctionTimes": func(stub shim.ChaincodeStubInterface, args []string) pb.Response {
 			return chaincode.getAverageFunctionTimes()
@@ -2603,6 +2599,14 @@ func main() {
 			return chaincode.validateBuyBidTestContext(stub, args[0], args[1])
 		},
 	}
+}
+
+func main() {
+	chaincode := new(EnergyChaincode)
+
+	averageFunctionTimes = make(map[string]*FunctionStats)
+
+	initFuncMap(chaincode)
 
 	// making lists to store the stats of each function, since go map does not allow multiple reads and writes
 	// even on different keys

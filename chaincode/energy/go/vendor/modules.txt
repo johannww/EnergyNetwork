@@ -6,12 +6,13 @@ github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/empty
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/hyperledger/fabric-chaincode-go v0.0.0-20201119163726-f8ef75b17719
+# github.com/hyperledger/fabric-chaincode-go v0.0.0-20210319203922-6b661064d4d9
 ## explicit
 github.com/hyperledger/fabric-chaincode-go/pkg/attrmgr
 github.com/hyperledger/fabric-chaincode-go/pkg/cid
 github.com/hyperledger/fabric-chaincode-go/shim
 github.com/hyperledger/fabric-chaincode-go/shim/internal
+github.com/hyperledger/fabric-chaincode-go/shimtest
 # github.com/hyperledger/fabric-protos-go v0.0.0-20210316153620-d0b39a899b24
 ## explicit
 github.com/hyperledger/fabric-protos-go/common
@@ -19,7 +20,7 @@ github.com/hyperledger/fabric-protos-go/ledger/queryresult
 github.com/hyperledger/fabric-protos-go/ledger/rwset
 github.com/hyperledger/fabric-protos-go/msp
 github.com/hyperledger/fabric-protos-go/peer
-# golang.org/x/net v0.0.0-20190522155817-f3200d17e092
+# golang.org/x/net v0.0.0-20190620200207-3b0461eec859
 ## explicit
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -27,14 +28,18 @@ golang.org/x/net/http2/hpack
 golang.org/x/net/idna
 golang.org/x/net/internal/timeseries
 golang.org/x/net/trace
-# golang.org/x/sys v0.0.0-20190710143415-6ec70d6a5542
+# golang.org/x/sys v0.0.0-20210507161434-a76c4d0a0096
+## explicit
+golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
-# golang.org/x/text v0.3.0
+# golang.org/x/text v0.3.2
 ## explicit
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
+# golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+## explicit
 # google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 google.golang.org/genproto/googleapis/rpc/status
 # google.golang.org/grpc v1.36.0
@@ -118,3 +123,5 @@ google.golang.org/protobuf/types/known/anypb
 google.golang.org/protobuf/types/known/durationpb
 google.golang.org/protobuf/types/known/emptypb
 google.golang.org/protobuf/types/known/timestamppb
+# gopkg.in/yaml.v2 v2.4.0
+## explicit
