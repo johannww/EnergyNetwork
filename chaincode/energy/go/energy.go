@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	st "energy/proto_structs"
 
@@ -74,8 +75,13 @@ var smartDataMeterPerSecondUnitPart uint32 = 0xe4963924 & smartDataUnitMask
 var smartDataCandelaUnitPart uint32 = 0xe4924925 & smartDataUnitMask
 
 const minUnicodeRuneValue = 0
+const maxUniCodeRuneValue = utf8.MaxRune
 
-var minUnicodeString string = string([]rune{minUnicodeRuneValue})
+//minUnicodeChar is used to delimit strings
+var minUnicodeChar string = string([]rune{minUnicodeRuneValue})
+
+//maxUnicodeChar is used to perform some GetStateByRange queries
+var maxUnicodeChar string = string([]rune{maxUniCodeRuneValue})
 
 //ActiveSensor represents the registering of a sensor
 //ActiveSensor aprox. memory size = 10 + 177 + 1 + 4*3 + 8 = 208 bytes
@@ -520,9 +526,9 @@ func (chaincode *EnergyChaincode) setTrustedSensors(stub shim.ChaincodeStubInter
 
 	//set the sensors as trusted, using as key the concatenation of sensorMspOwnerIDs[index] and sensorID[index]
 	for index, sensorID := range sensorsIDs {
-		trusted, alreadyInMap := mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeString+sensorID]
+		trusted, alreadyInMap := mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeChar+sensorID]
 		if !alreadyInMap || !trusted {
-			mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeString+sensorID] = true
+			mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeChar+sensorID] = true
 		}
 	}
 
@@ -574,9 +580,9 @@ func (chaincode *EnergyChaincode) setDistrustedSensors(stub shim.ChaincodeStubIn
 
 	//set the sensors as trusted, using as key the concatenation of sensorMspOwnerIDs[index] and sensorID[index]
 	for index, sensorID := range sensorsIDs {
-		trusted, _ := mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeString+sensorID]
+		trusted, _ := mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeChar+sensorID]
 		if trusted {
-			delete(mspTrustedSensors, sensorMspOwnerIDs[index]+minUnicodeString+sensorID)
+			delete(mspTrustedSensors, sensorMspOwnerIDs[index]+minUnicodeChar+sensorID)
 		}
 	}
 
@@ -614,7 +620,7 @@ func (chaincode *EnergyChaincode) getTrustedSensors(stub shim.ChaincodeStubInter
 	var separatedMspAndSensorIds [][]string
 
 	for trustedSensorKey, _ := range mspTrustedSensors {
-		separatedMspAndSensorIds = append(separatedMspAndSensorIds, strings.Split(trustedSensorKey, minUnicodeString))
+		separatedMspAndSensorIds = append(separatedMspAndSensorIds, strings.Split(trustedSensorKey, minUnicodeChar))
 	}
 
 	trustedSensorsListBytes, _ := json.Marshal(separatedMspAndSensorIds)
@@ -770,7 +776,8 @@ func (chaincode *EnergyChaincode) getSensorsPublishedData(stub shim.ChaincodeStu
 		mspID, err := cid.GetMSPID(stub)
 		//stateIterator, err := stub.GetStateByPartialCompositeKey("SmartData", []string{mspID, sensorID})
 		//SmartData key must be SIMPLE and not COMPOSITE to enable calling the method shim.ChaincodeStubInterface.GetStateByRange()
-		stateIterator, err := stub.GetStateByRange("SmartData"+mspID+sensorID, "")
+		startKey := "SmartData" + mspID + sensorID
+		stateIterator, err := stub.GetStateByRange(startKey, startKey+maxUnicodeChar)
 		if err != nil {
 			return shim.Error(err.Error())
 		}
@@ -1062,7 +1069,7 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 
 	for _, nearActiveSensor := range nearActiveSensorsList {
 		printf("nearActiveSensor: %+v\n Trusted: %t\n", nearActiveSensor, mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID])
-		if mspTrustedSensors[nearActiveSensor.MspID+minUnicodeString+nearActiveSensor.SensorID] {
+		if mspTrustedSensors[nearActiveSensor.MspID+minUnicodeChar+nearActiveSensor.SensorID] {
 			nearTrustedActiveSensors = append(nearTrustedActiveSensors, nearActiveSensor)
 		}
 	}
@@ -2821,7 +2828,7 @@ func (chaincode *EnergyChaincode) deleteDataByPartialCompositeKey(stub shim.Chai
 func (chaincode *EnergyChaincode) printDataQuantityByPartialSimpleKey(stub shim.ChaincodeStubInterface, partialSimpleKey string) pb.Response {
 	println("---- printDataQuantityByPartialSimpleKey function beggining ----")
 
-	dataIterator, err := stub.GetStateByRange(partialSimpleKey, "")
+	dataIterator, err := stub.GetStateByRange(partialSimpleKey, partialSimpleKey+maxUnicodeChar)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
@@ -2844,7 +2851,7 @@ func (chaincode *EnergyChaincode) printDataQuantityByPartialSimpleKey(stub shim.
 func (chaincode *EnergyChaincode) deleteDataByPartialSimpleKey(stub shim.ChaincodeStubInterface, partialSimpleKey string) pb.Response {
 	println("---- deleteDataByPartialSimpleKey function beggining ----")
 
-	dataIterator, err := stub.GetStateByRange(partialSimpleKey, "")
+	dataIterator, err := stub.GetStateByRange(partialSimpleKey, partialSimpleKey+maxUnicodeChar)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
