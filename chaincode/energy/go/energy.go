@@ -13,6 +13,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	st "energy/proto_structs"
@@ -71,6 +72,10 @@ var smartDataMeterPerSecondUnitPart uint32 = 0xe4963924 & smartDataUnitMask
 
 //Getting the last 27 bits identifying a candela SmartData unit
 var smartDataCandelaUnitPart uint32 = 0xe4924925 & smartDataUnitMask
+
+const minUnicodeRuneValue = 0
+
+var minUnicodeString string = string([]rune{minUnicodeRuneValue})
 
 //ActiveSensor represents the registering of a sensor
 //ActiveSensor aprox. memory size = 10 + 177 + 1 + 4*3 + 8 = 208 bytes
@@ -507,7 +512,7 @@ func (chaincode *EnergyChaincode) setTrustedSensors(stub shim.ChaincodeStubInter
 	mspTrustedSensorsBytes, err := stub.GetState(key)
 
 	//if map exists, unmarhsall it. If not, create the map.
-	if mspTrustedSensorsBytes != nil && err != nil {
+	if mspTrustedSensorsBytes != nil && err == nil {
 		err = json.Unmarshal(mspTrustedSensorsBytes, &mspTrustedSensors)
 	} else {
 		mspTrustedSensors = make(map[string]bool)
@@ -515,9 +520,9 @@ func (chaincode *EnergyChaincode) setTrustedSensors(stub shim.ChaincodeStubInter
 
 	//set the sensors as trusted, using as key the concatenation of sensorMspOwnerIDs[index] and sensorID[index]
 	for index, sensorID := range sensorsIDs {
-		trusted, alreadyInMap := mspTrustedSensors[sensorID]
+		trusted, alreadyInMap := mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeString+sensorID]
 		if !alreadyInMap || !trusted {
-			mspTrustedSensors[sensorMspOwnerIDs[index]+sensorID] = true
+			mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeString+sensorID] = true
 		}
 	}
 
@@ -561,7 +566,7 @@ func (chaincode *EnergyChaincode) setDistrustedSensors(stub shim.ChaincodeStubIn
 
 	mspTrustedSensorsBytes, err := stub.GetState(key)
 	//if map exists, unmarhsall it. If not, create the map.
-	if mspTrustedSensorsBytes != nil && err != nil {
+	if mspTrustedSensorsBytes != nil && err == nil {
 		err = json.Unmarshal(mspTrustedSensorsBytes, &mspTrustedSensors)
 	} else {
 		mspTrustedSensors = make(map[string]bool)
@@ -569,9 +574,9 @@ func (chaincode *EnergyChaincode) setDistrustedSensors(stub shim.ChaincodeStubIn
 
 	//set the sensors as trusted, using as key the concatenation of sensorMspOwnerIDs[index] and sensorID[index]
 	for index, sensorID := range sensorsIDs {
-		trusted, alreadyInMap := mspTrustedSensors[sensorID]
-		if !alreadyInMap || trusted {
-			mspTrustedSensors[sensorMspOwnerIDs[index]+sensorID] = false
+		trusted, _ := mspTrustedSensors[sensorMspOwnerIDs[index]+minUnicodeString+sensorID]
+		if trusted {
+			delete(mspTrustedSensors, sensorMspOwnerIDs[index]+minUnicodeString+sensorID)
 		}
 	}
 
@@ -601,12 +606,20 @@ func (chaincode *EnergyChaincode) getTrustedSensors(stub shim.ChaincodeStubInter
 
 	mspID, err := cid.GetMSPID(stub)
 
-	_, mspTrustedSensorsBytes, err := getMspTrustedSensorsMap(stub, mspID)
+	mspTrustedSensors, _, err := getMspTrustedSensorsMap(stub, mspID)
 	if err != nil {
 		return shim.Error(err.Error())
 	}
 
-	return shim.Success(mspTrustedSensorsBytes)
+	var separatedMspAndSensorIds [][]string
+
+	for trustedSensorKey, _ := range mspTrustedSensors {
+		separatedMspAndSensorIds = append(separatedMspAndSensorIds, strings.Split(trustedSensorKey, minUnicodeString))
+	}
+
+	trustedSensorsListBytes, _ := json.Marshal(separatedMspAndSensorIds)
+
+	return shim.Success(trustedSensorsListBytes)
 }
 
 func getMspTrustedSensorsMap(stub shim.ChaincodeStubInterface, mspID string) (map[string]bool, []byte, error) {
@@ -624,12 +637,8 @@ func getMspTrustedSensorsMap(stub shim.ChaincodeStubInterface, mspID string) (ma
 
 	_ = json.Unmarshal(mspTrustedSensorsBytes, &mspTrustedSensors)
 
-	for sensorID, trusted := range mspTrustedSensors {
-		if trusted {
-			println("Sensor: " + sensorID + "\nTrusted: true")
-		} else {
-			delete(mspTrustedSensors, sensorID)
-		}
+	for mspIDConcatSensorID, _ := range mspTrustedSensors {
+		println("Sensor: " + mspIDConcatSensorID + "\nTrusted: true")
 	}
 
 	return mspTrustedSensors, mspTrustedSensorsBytes, nil
@@ -948,8 +957,11 @@ func getSellerInfoRelatedToSmartMeter(stub shim.ChaincodeStubInterface, meterMsp
 		return sellerInfo, err
 	}
 
-	err = proto.Unmarshal(sellerInfoBytes, &sellerInfo)
+	if sellerInfoBytes == nil {
+		return sellerInfo, fmt.Errorf("No seller is related to this Sensor (Smart Meter)")
+	}
 
+	err = proto.Unmarshal(sellerInfoBytes, &sellerInfo)
 	if err != nil {
 		return sellerInfo, err
 	}
@@ -1050,7 +1062,7 @@ func (chaincode *EnergyChaincode) publishEnergyGeneration(stub shim.ChaincodeStu
 
 	for _, nearActiveSensor := range nearActiveSensorsList {
 		printf("nearActiveSensor: %+v\n Trusted: %t\n", nearActiveSensor, mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID])
-		if mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID] {
+		if mspTrustedSensors[nearActiveSensor.MspID+minUnicodeString+nearActiveSensor.SensorID] {
 			nearTrustedActiveSensors = append(nearTrustedActiveSensors, nearActiveSensor)
 		}
 	}
@@ -3325,7 +3337,7 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 
 	/*for _, nearActiveSensor := range nearActiveSensorsList {
 		printf("nearActiveSensor: %+v\n Trusted: %t\n", nearActiveSensor, mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID])
-		if mspTrustedSensors[nearActiveSensor.MspID+nearActiveSensor.SensorID] {
+		if mspTrustedSensors[nearActiveSensor.MspID+minUnicodeString+nearActiveSensor.SensorID] {
 			nearTrustedActiveSensors = append(nearTrustedActiveSensors, nearActiveSensor)
 		}
 	}*/
