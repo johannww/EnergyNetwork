@@ -83,6 +83,15 @@ var minUnicodeChar string = string([]rune{minUnicodeRuneValue})
 //maxUnicodeChar is used to perform some GetStateByRange queries
 var maxUnicodeChar string = string([]rune{maxUniCodeRuneValue})
 
+//experimentMaxSensors limit the number of active sensors
+//fetched when executing publishEnergyGenerationTestContext()
+//this keeps the experiment to a more REALISTIC load
+//instead of using ALL the sensors to validate the energy,
+//which could be more than 1000.
+//We assume that in a real environment 5 near sensors
+//is a reasonable number.
+const experimentMaxSensors = 5
+
 //ActiveSensor represents the registering of a sensor
 //ActiveSensor aprox. memory size = 10 + 177 + 1 + 4*3 + 8 = 208 bytes
 /*type ActiveSensor struct {
@@ -3326,7 +3335,11 @@ func (chaincode *EnergyChaincode) publishEnergyGenerationTestContext(stub shim.C
 		printf("activeSensorData.Radius: %f\n", activeSensorData.Radius)
 		if distanceBetweenSensorAndGenerator <= activeSensorData.Radius {
 			nearActiveSensorsList = append(nearActiveSensorsList, activeSensorData)
+			if len(nearActiveSensorsList) >= experimentMaxSensors {
+				break
+			}
 		}
+
 	}
 
 	printf("nearActiveSensorsList: %+v\n", nearActiveSensorsList)
