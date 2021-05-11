@@ -40,6 +40,9 @@ def memToGibFloat(memStrDockerStats):
   if numPosition >= 0:
     return float(memStrDockerStats[:numPosition]) / (1024 * 1024)
 
+  numPosition = memStrDockerStats.find("B")
+  if numPosition >= 0:
+    return float(memStrDockerStats[:numPosition]) / (1024 * 1024 * 1024)
 
 
 def netUsageToMbFloat(netStrDockerStats):
