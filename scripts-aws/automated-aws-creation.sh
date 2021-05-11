@@ -431,7 +431,7 @@ done
 for key in ${!orgsPeerHosts[@]}; do
     peerHostsArgs="$peerHostsArgs\"$key\":\"${orgsPeerHosts[$key]}\","
 done
-python $SCRIPT_DIR/partialConfigTxGeneratorAws.py "$BASE_DIR" \{${ordHostsArgs%?}\} \{${peerHostsArgs%?}\}
+python $SCRIPT_DIR/partialConfigtxGeneratorAws.py "$BASE_DIR" \{${ordHostsArgs%?}\} \{${peerHostsArgs%?}\}
 
 
 #

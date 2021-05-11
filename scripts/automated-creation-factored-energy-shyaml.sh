@@ -55,7 +55,7 @@ find hyperledger/ -type d -delete
 # IT ALSO READS THE 
 # Located in "config-template/configtxTemplate.yaml"
 #
-python $BASE_DIR/scripts/partialConfigTxGenerator.py "$BASE_DIR"
+python $BASE_DIR/scripts/partialConfigtxGenerator.py "$BASE_DIR"
 
 
 declare -A matrix
