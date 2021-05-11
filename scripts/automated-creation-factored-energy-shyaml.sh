@@ -67,19 +67,19 @@ echo -e $blueback \##Parsing CONFIG-ME-FIRST.yaml with 'shyaml' $resetvid
 configMeFirstText=`cat CONFIG-ME-FIRST.yaml`
 numberOfOrgs=`echo "$configMeFirstText" | shyaml get-length organizations`
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
-    keyValues=( $(echo "$configMeFirstText" | shyaml key-values organizations.$org) )
+    keyValues=( $(echo "$configMeFirstText" | shyaml key-values organizations.$org | dos2unix) )
     keyValueIndex=0
     for keyValue in ${keyValues[@]}; do
         if [ $(($keyValueIndex%2)) == 0 ]; then
             key=$keyValue
         else
             value=$keyValue
-            matrix[$org,${key%?}]=${value%?}
+            matrix[$org,${key}]=${value}
         fi
 
         keyValueIndex=$((keyValueIndex+1))
     done
-    matrix[$org,${key%?}]=${value}
+    matrix[$org,${key}]=${value}
     #EXIT if an organization does not have any admin
     if (( ${matrix[$org,admin-quantity]} < 1 )); then
         echo -e $blueback \##Organization ${matrix[$org,name]} must have AT LEAST 1 admin $resetvid
