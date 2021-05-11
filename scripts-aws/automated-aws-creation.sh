@@ -176,7 +176,7 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     export INIT_OR_START="init"
     docker-compose -f docker-compose-aws.yml up -d rca-$ORG_NAME
     echo -e $blueback \# Editing RCA-$ORG_NAME fabric-ca-server-config.yaml affiliations $resetvid
-    python $BASE_DIR/scripts/editRootCaAfiiliations.py "$ORG_NAME" "$BASE_DIR/hyperledger/$ORG_NAME/ca/crypto/"
+    python3 $BASE_DIR/scripts/editRootCaAfiiliations.py "$ORG_NAME" "$BASE_DIR/hyperledger/$ORG_NAME/ca/crypto/"
     echo -e $blueback \# pre-initializaing RCA-$ORG_NAME $resetvid
     export INIT_OR_START="start"
     docker-compose -f docker-compose-aws.yml up -d rca-$ORG_NAME
@@ -431,7 +431,7 @@ done
 for key in ${!orgsPeerHosts[@]}; do
     peerHostsArgs="$peerHostsArgs\"$key\":\"${orgsPeerHosts[$key]}\","
 done
-python $SCRIPT_DIR/partialConfigtxGeneratorAws.py "$BASE_DIR" \{${ordHostsArgs%?}\} \{${peerHostsArgs%?}\}
+python3 $SCRIPT_DIR/partialConfigtxGeneratorAws.py "$BASE_DIR" \{${ordHostsArgs%?}\} \{${peerHostsArgs%?}\}
 
 
 #
@@ -446,7 +446,7 @@ echo -e $blueback \# Gerando bloco genesis para syschannel -- NAO PRECISA NA VER
 configtxgen -configPath $BASE_DIR/generated-config-aws -profile $sysChannelProfile -outputBlock ${BASE_DIR}/hyperledger/tempgenesis.block -channelID syschannel
 find hyperledger/ -type d -regex ".*/orderer[0-9]+" | while read path; do cp ${BASE_DIR}/hyperledger/tempgenesis.block ${BASE_DIR}/$path/genesis.block; done  
 rm ${BASE_DIR}/hyperledger/tempgenesis.block
-defaultOrdererName=$(python $BASE_DIR/scripts/getDefaultOrderer.py $BASE_DIR/generated-config-aws/configtx.yaml $sysChannelProfile)
+defaultOrdererName=$(python3 $BASE_DIR/scripts/getDefaultOrderer.py $BASE_DIR/generated-config-aws/configtx.yaml $sysChannelProfile)
 defaultOrderer=${orgsOrdHosts[$defaultOrdererName]}
 
 #echo -e $blueback \# "Compressing credentials and sending to S3 bucket to be downloaded by peers and orderers" $resetvid
@@ -553,7 +553,7 @@ for key in ${!orgsPeerHosts[@]}; do
 done
 
 mkdir -p $BASE_DIR/generated-connection-tls
-python $SCRIPT_DIR/awsAppConnectionsCreator.py --basedir $BASE_DIR --awsbasedir '//EnergyNetwork' --ordererhosts \{${ordHostsArgs%?}\} --peerhosts \{${peerHostsArgs%?}\}
+python3 $SCRIPT_DIR/awsAppConnectionsCreator.py --basedir $BASE_DIR --awsbasedir '//EnergyNetwork' --ordererhosts \{${ordHostsArgs%?}\} --peerhosts \{${peerHostsArgs%?}\}
 
 echo -e $blueback \# "Copying organizations 'connections-tls.json' to 'energy-applications/cfgs'"$resetvid
 cp $BASE_DIR/generated-connection-tls/*.*  $BASE_DIR/energy-applications/cfgs/
@@ -580,7 +580,7 @@ while true; do
     channelID="canal"
     channelID=${channelID,,}
     #Python script reads the $profile variable and prints the orgs in the channel
-    ORGS_IN_CHANNEL=( $(python $BASE_DIR/scripts/getOrganizationsInChannel.py $BASE_DIR/generated-config-aws/configtx.yaml $profile) )
+    ORGS_IN_CHANNEL=( $(python3 $BASE_DIR/scripts/getOrganizationsInChannel.py $BASE_DIR/generated-config-aws/configtx.yaml $profile) )
     #Generate channel CreateChannelTx
 
     firstOrgInChannelUpper=${ORGS_IN_CHANNEL[0]}
@@ -711,7 +711,7 @@ while true; do
       
             #get installed chaincodes IDs
             unset MSYS_NO_PATHCONV
-            chaincodeIDs=( $(python $BASE_DIR/scripts/getChaincodesIDs.py "$jsonString") )
+            chaincodeIDs=( $(python3 $BASE_DIR/scripts/getChaincodesIDs.py "$jsonString") )
             export MSYS_NO_PATHCONV=1
 
             #
