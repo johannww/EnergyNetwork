@@ -7,6 +7,7 @@ unset MSYS_NO_PATHCONV
 export MSYS_NO_PATHCONV
 export FABRIC_CA_CLIENT_MSPDIR=.
 export BINDABLE_PORT=7000
+currentUser=$USER
 blueback="\0033[1;37;44m"
 resetvid="\0033[0m"
 
@@ -55,9 +56,8 @@ docker-compose -f docker-compose-aws.yml down --remove-orphans
 
 
 
-find hyperledger/ -type f -delete
-find hyperledger/ -type l -delete
-find hyperledger/ -type d -delete
+rm -r hyperledger
+mkdir hyperledger
 
 
 declare -A matrix
@@ -154,6 +154,8 @@ echo -e $blueback \# Turning on CA-TLS$resetvid
 docker-compose -f docker-compose-aws.yml up -d ca-tls
 sleep 2s
 docker logs ca-tls
+echo -e $blueback \# "Changing POST-INITIALIZE mounted directory file ownership " $resetvid
+sudo chown -R $currentUser:$currentUser ${BASE_DIR}/hyperledger/tls-ca
 echo -e $blueback \# Downloading CA-TLS admin certificate $resetvid
 PATH_CERT_ADM_TLS=${BASE_DIR}/hyperledger/tls-ca/crypto/ca-cert.pem
 PATH_MSP_ADM_TLS=${BASE_DIR}/hyperledger/tls-ca/admin/msp
@@ -172,17 +174,22 @@ for  ((l=0; l<$numberOfOrgs; l+=1)); do
     echo -e $blueback \# "Changing RCA service name in file 'docker-compose-aws.yml'" $resetvid
     perl -pi -e 's/rca:/rca-'$ORG_NAME':/g' docker-compose-aws.yml
     sleep 1s
-    echo -e $blueback \# pre-initializaing RCA-$ORG_NAME $resetvid
+    echo -e $blueback \# pre-initializing RCA-$ORG_NAME $resetvid
     export INIT_OR_START="init"
     docker-compose -f docker-compose-aws.yml up -d rca-$ORG_NAME
+    sleep 1s
+    echo -e $blueback \# "Changing mounted directory file ownership " $resetvid
+    sudo chown -R $currentUser:$currentUser $BASE_DIR/hyperledger/$ORG_NAME
     echo -e $blueback \# Editing RCA-$ORG_NAME fabric-ca-server-config.yaml affiliations $resetvid
     python3 $BASE_DIR/scripts/editRootCaAfiiliations.py "$ORG_NAME" "$BASE_DIR/hyperledger/$ORG_NAME/ca/crypto/"
-    echo -e $blueback \# pre-initializaing RCA-$ORG_NAME $resetvid
+    echo -e $blueback \# Initializing RCA-$ORG_NAME $resetvid
     export INIT_OR_START="start"
     docker-compose -f docker-compose-aws.yml up -d rca-$ORG_NAME
     perl -pi -e 's/rca-'$ORG_NAME':/rca:/g' docker-compose-aws.yml
     sleep 1s
     docker logs rca-$ORG_NAME
+    echo -e $blueback \# "Changing POST-INITIALIZE mounted directory file ownership " $resetvid
+    sudo chown -R $currentUser:$currentUser $BASE_DIR/hyperledger/$ORG_NAME
     echo -e $blueback \# Configuring RCA-$ORG_NAME $resetvid
     export FABRIC_CA_CLIENT_TLS_CERTFILES=${BASE_DIR}/hyperledger/$ORG_NAME/ca/crypto/ca-cert.pem
     export FABRIC_CA_CLIENT_HOME=${BASE_DIR}/hyperledger/$ORG_NAME/ca/admin/msp

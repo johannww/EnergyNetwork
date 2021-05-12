@@ -21,25 +21,25 @@ echo -e $blueback \## "Reading network params from 'CONFIG-ME-FIRST.yaml' "   $r
 configMeFirstText=$(cat CONFIG-ME-FIRST.yaml)
 numberOfOrgs=$(echo "$configMeFirstText" | shyaml get-length organizations)
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
-    keyValues=( $(echo "$configMeFirstText" | shyaml key-values organizations.$org) )
+    keyValues=( $(echo "$configMeFirstText" | shyaml key-values organizations.$org | dos2unix) )
     keyValueIndex=0
     for keyValue in ${keyValues[@]}; do
         if [ $(($keyValueIndex%2)) == 0 ]; then
             key=$keyValue
         else
             value=$keyValue
-            parsedConfigMeFirst[$org,${key%?}]=${value%?}
+            parsedConfigMeFirst[$org,${key}]=${value}
         fi
 
         keyValueIndex=$((keyValueIndex+1))
     done
-    parsedConfigMeFirst[$org,${key%?}]=${value}
+    parsedConfigMeFirst[$org,${key}]=${value}
 done
 
 echo -e $blueback  "Loading AWS hosts from $BASE_DIR/aws-hosts.yaml" $resetvid 
 hostsText=$(cat aws-hosts.yaml)
 unset keyValues
-keyValues=$(echo "$hostsText" | shyaml key-values)
+keyValues=$(echo "$hostsText" | shyaml key-values | dos2unix)
 for keyValue in ${keyValues[@]}; do
     keyValueIndex=0
     for keyValue in ${keyValues[@]}; do
@@ -47,12 +47,12 @@ for keyValue in ${keyValues[@]}; do
             key=$keyValue
         else
             value=$keyValue
-            hosts[${key%?}]=${value%?}
+            hosts[${key}]=${value}
         fi
 
         keyValueIndex=$((keyValueIndex+1))
     done
-    hosts[${key%?}]=${value}
+    hosts[${key}]=${value}
 done
 
 parseTestConfigMap() {
@@ -67,25 +67,25 @@ parseTestConfigMap() {
         else
             value=$keyValue
             #echo "VALUE:"$keyValue
-            parsedTestCfg[$preKey,${key%?}]=${value%?}
+            parsedTestCfg[$preKey,${key}]=${value}
         fi
 
         keyValueIndex=$((keyValueIndex+1))
     done
-    parsedTestCfg[$preKey,${key%?}]=${value}
+    parsedTestCfg[$preKey,${key}]=${value}
 }
 
 echo -e $blueback  "Copying 'test-configuration.yaml' to $testFolder" $resetvid 
 cp $BASE_DIR/test-configuration.yaml $testFolder/
 echo -e $blueback \## "Reading configuration params in test-configuration.yaml"   $resetvid 
 testParamsText=`cat test-configuration.yaml`
-sensorsKeyValues=( $(echo "$testParamsText" | shyaml key-values sensors) )
-sellersKeyValues=( $(echo "$testParamsText" | shyaml key-values sellers) )
-buyersKeyValues=( $(echo "$testParamsText" | shyaml key-values buyers) )
-utilityUrl=( $(echo "$testParamsText" | shyaml get-value utilityurl) )
-paymentUrl=( $(echo "$testParamsText" | shyaml get-value paymentcompanyurl) )
-auctionInterval=( $(echo "$testParamsText" | shyaml get-value auctioninterval) )
-applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml get-value applications-quantity) )
+sensorsKeyValues=( $(echo "$testParamsText" | shyaml key-values sensors | dos2unix) )
+sellersKeyValues=( $(echo "$testParamsText" | shyaml key-values sellers | dos2unix) )
+buyersKeyValues=( $(echo "$testParamsText" | shyaml key-values buyers | dos2unix) )
+utilityUrl=( $(echo "$testParamsText" | shyaml get-value utilityurl | dos2unix) )
+paymentUrl=( $(echo "$testParamsText" | shyaml get-value paymentcompanyurl | dos2unix) )
+auctionInterval=( $(echo "$testParamsText" | shyaml get-value auctioninterval | dos2unix) )
+applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml get-value applications-quantity | dos2unix) )
 
 parseTestConfigMap sensors "${sensorsKeyValues[@]}" 
 parseTestConfigMap sellers "${sellersKeyValues[@]}" 
@@ -252,7 +252,7 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
 done
 
 echo -e $blueback \## "Plotting graphs to folder test-reports/$testNumber/plots"   $resetvid 
-python $SCRIPT_DIR/../scripts/experimentGraphicCreator.py $BASE_DIR/test-reports/$testNumber
+python3 $SCRIPT_DIR/../scripts/experimentGraphicCreator.py $BASE_DIR/test-reports/$testNumber
 
 echo -e $blueback \## "Waiting for logs" $resetvid
 wait
