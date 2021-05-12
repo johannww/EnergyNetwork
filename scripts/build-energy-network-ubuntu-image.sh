@@ -8,5 +8,5 @@ else
 fi
 export ARCH_JAVA_HOME
 envsubst '$ARCH_JAVA_HOME' < $SCRIPT_DIR/../energy-applications/Dockerfile/Dockerfile > $SCRIPT_DIR/Dockerfile
-docker build . -f $SCRIPT_DIR/Dockerfile -t energy-network-ubuntu
+docker build $SCRIPT_DIR/.. -f $SCRIPT_DIR/Dockerfile -t energy-network-ubuntu
 rm $SCRIPT_DIR/Dockerfile
