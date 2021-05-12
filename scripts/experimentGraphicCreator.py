@@ -137,7 +137,7 @@ testReportDir = sys.argv[1]
 #testReportDir = "D:/UFSC/Mestrado/Hyperledger/Fabric/EnergyNetwork/test-reports/5"
 plotsDir = testReportDir+"/plots"
 if not os.path.isdir(plotsDir):
-  os.mkdir(plotsDir, 1)
+  os.mkdir(plotsDir)
 
 '''Parsing "CONFIG-ME-FIRST.yaml" file'''
 with open("CONFIG-ME-FIRST.yaml", 'r') as preconfig:
