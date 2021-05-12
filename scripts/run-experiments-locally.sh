@@ -19,21 +19,21 @@ echo -e $blueback  "Copying 'CONFIG-ME-FIRST.yaml' to $testFolder" $resetvid
 cp $BASE_DIR/CONFIG-ME-FIRST.yaml $testFolder/
 echo -e $blueback \## "Reading network params from 'CONFIG-ME-FIRST.yaml' "   $resetvid
 configMeFirstText=$(cat CONFIG-ME-FIRST.yaml)
-numberOfOrgs=$(echo "$configMeFirstText" | shyaml get-length organizations)
+numberOfOrgs=$(echo "$configMeFirstText" | shyaml get-length organizations | dos2unix)
 for  ((org=0; org<$numberOfOrgs; org+=1)); do
-    keyValues=( $(echo "$configMeFirstText" | shyaml key-values organizations.$org) )
+    keyValues=( $(echo "$configMeFirstText" | shyaml key-values organizations.$org | dos2unix) )
     keyValueIndex=0
     for keyValue in ${keyValues[@]}; do
         if [ $(($keyValueIndex%2)) == 0 ]; then
             key=$keyValue
         else
             value=$keyValue
-            parsedConfigMeFirst[$org,${key%?}]=${value%?}
+            parsedConfigMeFirst[$org,${key}]=${value}
         fi
 
         keyValueIndex=$((keyValueIndex+1))
     done
-    parsedConfigMeFirst[$org,${key%?}]=${value}
+    parsedConfigMeFirst[$org,${key}]=${value}
 done
 
 parseTestConfigMap() {
@@ -48,25 +48,25 @@ parseTestConfigMap() {
         else
             value=$keyValue
             #echo "VALUE:"$keyValue
-            parsedTestCfg[$preKey,${key%?}]=${value%?}
+            parsedTestCfg[$preKey,${key}]=${value}
         fi
 
         keyValueIndex=$((keyValueIndex+1))
     done
-    parsedTestCfg[$preKey,${key%?}]=${value}
+    parsedTestCfg[$preKey,${key}]=${value}
 }
 
 echo -e $blueback  "Copying 'test-configuration.yaml' to $testFolder" $resetvid 
 cp $BASE_DIR/test-configuration.yaml $testFolder/
 echo -e $blueback \## "Reading configuration params in test-configuration.yaml"   $resetvid 
 testParamsText=`cat test-configuration.yaml`
-sensorsKeyValues=( $(echo "$testParamsText" | shyaml key-values sensors) )
-sellersKeyValues=( $(echo "$testParamsText" | shyaml key-values sellers) )
-buyersKeyValues=( $(echo "$testParamsText" | shyaml key-values buyers) )
-utilityUrl=( $(echo "$testParamsText" | shyaml get-value utilityurl) )
-paymentUrl=( $(echo "$testParamsText" | shyaml get-value paymentcompanyurl) )
-auctionInterval=( $(echo "$testParamsText" | shyaml get-value auctioninterval) )
-applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml get-value applications-quantity) )
+sensorsKeyValues=( $(echo "$testParamsText" | shyaml key-values sensors | dos2unix) )
+sellersKeyValues=( $(echo "$testParamsText" | shyaml key-values sellers | dos2unix) )
+buyersKeyValues=( $(echo "$testParamsText" | shyaml key-values buyers | dos2unix) )
+utilityUrl=( $(echo "$testParamsText" | shyaml get-value utilityurl | dos2unix) )
+paymentUrl=( $(echo "$testParamsText" | shyaml get-value paymentcompanyurl | dos2unix) )
+auctionInterval=( $(echo "$testParamsText" | shyaml get-value auctioninterval | dos2unix) )
+applicationInstancesNumber=( $(echo "$configMeFirstText" | shyaml get-value applications-quantity | dos2unix) )
 
 parseTestConfigMap sensors "${sensorsKeyValues[@]}" 
 parseTestConfigMap sellers "${sellersKeyValues[@]}" 
@@ -103,12 +103,13 @@ for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do docker restart cli-applic
 
 echo -e $blueback \## "measuring ecdsap256 speed - ONLY POSSIBLE IN cli-applications "   $resetvid
 docker exec cli-applications-1 openssl speed ecdsap256 > $testFolder/ecdsap256-speed-cli-applications.txt
+docker exec cli-applications-1 bash -c 'mvn clean && mvn compile'
 
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
     docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" cli-applications-$i > $testFolder/stats-cli-applications-$i.txt &
 done
-#loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
-#loggingFlag2="-Dlog4j.configuration=log4j.properties"
+loggingFlag1="-Djava.util.logging.config.file=commons-logging.properties"
+loggingFlag2="-Dlog4j.configuration=log4j.properties"
 
 echo -e $blueback \## "Starting Utility and PaymentCompany applications "   $resetvid 
 #cd energy-applications
@@ -189,4 +190,4 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
 done
 
 echo -e $blueback \## "Plotting graphs to folder test-reports/$testNumber/plots"   $resetvid 
-python $SCRIPT_DIR/experimentGraphicCreator.py $BASE_DIR/test-reports/$testNumber
+python3 $SCRIPT_DIR/experimentGraphicCreator.py $BASE_DIR/test-reports/$testNumber
