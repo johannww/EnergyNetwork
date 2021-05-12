@@ -140,7 +140,12 @@ EOF
 ) >> $testFolder/initial-containers-filesystem-sizes.txt
 
         sshCmdBg ${hosts[peer$i-$orgName]} docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" peer$i-$orgName > $testFolder/stats-peer$i-$orgName.txt
-        chaincodeContainerName=$(sshCmd ${hosts[peer$i-$orgName]} docker container ls --format "{{.Names}}" | grep "dev-peer$i-$orgName" )
+        while true; do
+            echo -e $blueback "Waiting for peer$i-$orgName chaincode init" $resetvid
+            chaincodeContainerName=$(sshCmd ${hosts[peer$i-$orgName]} docker container ls --format "{{.Names}}" | grep "dev-peer$i-$orgName" )
+            [[ $chaincodeContainerName == "" ]] || break
+            sleep 1s
+        done
         sshCmdBg ${hosts[peer$i-$orgName]} docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" $chaincodeContainerName > $testFolder/stats-chaincode-peer$i-$orgName.txt
     done
 done

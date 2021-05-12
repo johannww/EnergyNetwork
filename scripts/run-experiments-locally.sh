@@ -91,7 +91,12 @@ for  ((org=0; org<$numberOfOrgs; org+=1)); do
     for ((i=1; i<=$nPeers; i+=1)); do
         docker restart peer$i-$orgName
         docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" peer$i-$orgName > $testFolder/stats-peer$i-$orgName.txt &
-        chaincodeContainerName=$(docker container ls --format "{{.Names}}" | grep "dev-peer$i-$orgName")
+        while true; do
+            echo -e $blueback "Waiting for peer$i-$orgName chaincode init" $resetvid
+            chaincodeContainerName=$(docker container ls --format "{{.Names}}" | grep "dev-peer$i-$orgName")
+            [[ $chaincodeContainerName == "" ]] || break
+            sleep 1s
+        done
         docker stats --format "{{.CPUPerc}}:{{.MemUsage}}:{{.NetIO}}:{{.BlockIO}}" $chaincodeContainerName > $testFolder/stats-chaincode-peer$i-$orgName.txt &
         echo -n "peer$i-$orgName: "  >> $testFolder/initial-containers-filesystem-sizes.txt
         docker exec peer$i-$orgName du // -s >> $testFolder/initial-containers-filesystem-sizes.txt
