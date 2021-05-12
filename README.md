@@ -12,7 +12,13 @@ FALAR SOBRE
 
 > Python 3.8.2
 
+> python3 regex
+
+> python3 matplotlib
+
 > shyaml 0.6.2 --> to parse YAMLs in Bash scripts
+
+> dos2unix
 
 > go version go1.16 windows/amd64
 
