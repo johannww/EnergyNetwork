@@ -22,9 +22,22 @@ make gotools
 #ginkgo -r ./integration/nwo
 echo -e $blueback \## "Compiling fabric-v2.3.0 with support for TRANSACTION PRIORITY" $resetvid
 make docker
+echo -e $blueback \## "Compiling fabric local binaries to $SCRIPT_DIR/bin" $resetvid
+make native
+cp -r build/bin $SCRIPT_DIR/../bin
 cd ..
 rm -r fabric
 
+
+echo -e $blueback \## Making the fabric-ca-client binaries with transaction priority  $resetvid
+git clone https://github.com/hyperledger/fabric-ca.git
+cd fabric-ca/
+echo -e $blueback \## checkout fabric-ca tags/v1.4.9 $resetvid
+git checkout v1.5.0
+make fabric-ca-client
+cp -r bin/fabric-ca-client $SCRIPT_DIR/../bin
+cd ..
+rm -r fabric-ca
 
 #echo -e $blueback \## Showing how EnergyNetowrk compiled a new '"proposal_response.pb.go"' for the fabric and chaincode $resetvid
 #echo -e $blueback \## Cloning fabric-protos repository $resetvid
