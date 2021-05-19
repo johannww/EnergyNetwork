@@ -1,3 +1,45 @@
+diff --git a/core/container/dockercontroller/dockercontroller.go b/core/container/dockercontroller/dockercontroller.go
+index 1194ff7dc..c124ed097 100644
+--- a/core/container/dockercontroller/dockercontroller.go
++++ b/core/container/dockercontroller/dockercontroller.go
+@@ -100,17 +100,18 @@ func (ci *ContainerInstance) Wait() (int, error) {
+ 
+ // DockerVM is a vm. It is identified by an image id
+ type DockerVM struct {
+-	PeerID          string
+-	NetworkID       string
+-	BuildMetrics    *BuildMetrics
+-	HostConfig      *docker.HostConfig
+-	Client          dockerClient
+-	AttachStdOut    bool
+-	ChaincodePull   bool
+-	NetworkMode     string
+-	PlatformBuilder PlatformBuilder
+-	LoggingEnv      []string
+-	MSPID           string
++	PeerID                  string
++	NetworkID               string
++	BuildMetrics            *BuildMetrics
++	HostConfig              *docker.HostConfig
++	Client                  dockerClient
++	AttachStdOut            bool
++	ChaincodePull           bool
++	NetworkMode             string
++	PlatformBuilder         PlatformBuilder
++	LoggingEnv              []string
++	MSPID                   string
++	EndorseConcurrencyLimit int
+ }
+ 
+ // HealthCheck checks if the DockerVM is able to communicate with the Docker
+@@ -271,6 +272,7 @@ func (vm *DockerVM) GetEnv(ccid string, tlsConfig *ccintf.TLSConfig) []string {
+ 	}
+ 
+ 	envs = append(envs, fmt.Sprintf("CORE_PEER_LOCALMSPID=%s", vm.MSPID))
++	envs = append(envs, fmt.Sprintf("CORE_PEER_LIMITS_CONCURRENCY_ENDORSERSERVICE=%d", vm.EndorseConcurrencyLimit))
+ 
+ 	return envs
+ }
 diff --git a/core/ledger/kvledger/txmgmt/validation/batch_preparer.go b/core/ledger/kvledger/txmgmt/validation/batch_preparer.go
 index ee27bcefe..a660e9dd4 100644
 --- a/core/ledger/kvledger/txmgmt/validation/batch_preparer.go
@@ -200,6 +242,20 @@ index eb3c154ba..1dab3089c 100644
  
  FROM golang:${GO_VER}-alpine
  # git is required to support `go list -m`
+diff --git a/internal/peer/node/start.go b/internal/peer/node/start.go
+index ea1dfa76f..1e7d059e4 100644
+--- a/internal/peer/node/start.go
++++ b/internal/peer/node/start.go
+@@ -560,7 +560,8 @@ func serve(args []string) error {
+ 				"CORE_CHAINCODE_LOGGING_SHIM=" + chaincodeConfig.ShimLogLevel,
+ 				"CORE_CHAINCODE_LOGGING_FORMAT=" + chaincodeConfig.LogFormat,
+ 			},
+-			MSPID: mspID,
++			MSPID:                   mspID,
++			EndorseConcurrencyLimit: coreConfig.LimitsConcurrencyEndorserService,
+ 		}
+ 		if err := opsSystem.RegisterChecker("docker", dockerVM); err != nil {
+ 			logger.Panicf("failed to register docker health check: %s", err)
 diff --git a/orderer/consensus/etcdraft/blockcreator.go b/orderer/consensus/etcdraft/blockcreator.go
 index 2475e329c..23f91c7e6 100644
 --- a/orderer/consensus/etcdraft/blockcreator.go

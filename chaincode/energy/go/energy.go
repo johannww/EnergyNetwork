@@ -234,6 +234,12 @@ func (chaincode *EnergyChaincode) setPrint(print bool) pb.Response {
 	return shim.Success(nil)
 }
 
+func peerEndorseConcurrencyLimit() int {
+	concurrencyLimitStr := os.Getenv("CORE_PEER_LIMITS_CONCURRENCY_ENDORSERSERVICE")
+	concurrencyLimit, _ := strconv.Atoi(concurrencyLimitStr)
+	return concurrencyLimit
+}
+
 func (chaincode *EnergyChaincode) getAverageFunctionTimes() pb.Response {
 	averageFunctionTimesMap := make(map[string]FunctionStats)
 	for functionName := range functionMap {
@@ -2642,7 +2648,7 @@ func main() {
 		averageFunctionTimes[functionName] = &FunctionStats{0, 0}
 	}
 
-	channelAverageCalculator = make(chan *FunctionAndDuration)
+	channelAverageCalculator = make(chan *FunctionAndDuration, peerEndorseConcurrencyLimit())
 	go recalculateFunctionAverageTime()
 
 	err := shim.Start(chaincode)
