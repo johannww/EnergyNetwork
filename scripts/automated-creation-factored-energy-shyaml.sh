@@ -445,16 +445,16 @@ done
 #for  ((l=0; l<$numberOfOrgs; l+=1)); do
 #    export ORG_NAME=${matrix[$l,name]}
 #    nAdms=${matrix[$l,admin-quantity]}
-#    echo -e $blueback \# "Changing 'cli' service name in file 'docker-compose-aws.yml'" $resetvid
-#    perl -pi -e 's/ cli:/ cli-'$ORG_NAME':/g' docker-compose-aws.yml
+#    echo -e $blueback \# "Changing 'cli' service name in file 'docker-compose.yml'" $resetvid
+#    perl -pi -e 's/ cli:/ cli-'$ORG_NAME':/g' docker-compose.yml
 #    sleep 1s
 #    echo -e $blueback \# Turning cli-$ORG_NAME on $resetvid
-#    docker-compose -f docker-compose-aws.yml up -d cli-$ORG_NAME
-#    perl -pi -e 's/ cli-'$ORG_NAME':/ cli:/g' docker-compose-aws.yml
+#    docker-compose -f docker-compose.yml up -d cli-$ORG_NAME
+#    perl -pi -e 's/ cli-'$ORG_NAME':/ cli:/g' docker-compose.yml
 #    sleep 1s
 #    docker logs cli-$ORG_NAME
 #done
-docker-compose -f docker-compose-aws.yml up -d cli
+docker-compose -f docker-compose.yml up -d cli
 
 #
 # CREATING THE 'connection-tls.json' files for the applications SDKs
@@ -488,7 +488,7 @@ while true; do
     while true; do
         read -p "Do you wish create any channel? [yN]" yn
         case $yn in
-            [Yy]* ) read -p   "$(echo -e $blueback "MAKE SURE YOU HAVE CONFIGURED THE CHANNEL IN generated-config-aws/configtx.yaml (PRESS ENTER TO CONTINUE)" $resetvid)"; break;;
+            [Yy]* ) read -p   "$(echo -e $blueback "MAKE SURE YOU HAVE CONFIGURED THE CHANNEL IN generated-config/configtx.yaml (PRESS ENTER TO CONTINUE)" $resetvid)"; break;;
             [Nn]* ) exit="true"; break;;
             * ) echo "Please answer yes or no.";;
         esac
