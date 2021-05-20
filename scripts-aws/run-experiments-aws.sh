@@ -99,13 +99,13 @@ cp $BASE_DIR/aws-hosts-instances.yaml $testFolder/
 sshCmd() {
     local host=$1
     shift 
-    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$host "$@"  
+    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "ServerAliveInterval 60" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$host "$@"  
 }
 
 sshCmdBg() {
     local host=$1
     shift 
-    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$host "$@" &
+    ssh -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null" -o "ServerAliveInterval 60" -i $SCRIPT_DIR/EnergyNetworkAwsKeyPair.pem ubuntu@$host "$@" &
 }
 
 #initialize peers and orderers
@@ -202,9 +202,9 @@ unset MSYS_NO_PATHCONV
 
 echo -e $blueback \## "Waiting for AppSensorTest, AppSellerTest and AppBuyerTest to finish "   $resetvid 
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
-    wait ${pidsSensor[$i]}
-    wait ${pidsSeller[$i]}
-    wait ${pidsBuyer[$i]}
+    wait ${pidsSensor[$i]} && echo "Sensor application$i ended"
+    wait ${pidsSeller[$i]} && echo "Seller application$i ended"
+    wait ${pidsBuyer[$i]} && echo "Buyer application$i ended"
 done
 echo 'end-time: '$(date +"%T.%N") >> $testFolder/test-start-and-finish.txt
 testDurationSec=$((`date +%s` - startTimestamp))
