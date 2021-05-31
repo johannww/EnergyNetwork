@@ -256,4 +256,8 @@ python3 $SCRIPT_DIR/../scripts/experimentGraphicCreator.py $BASE_DIR/test-report
 
 echo -e $blueback \## "Waiting for logs" $resetvid
 wait
+
+echo -e $blueback \## "Creating 'annotations.txt' if you desire to write interpretations for this experiment round" $resetvid
+touch $testFolder/annotations.txt
+
 echo -e $blueback \## "Done!" $resetvid
