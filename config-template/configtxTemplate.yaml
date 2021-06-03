@@ -376,6 +376,11 @@ Profiles:
         Orderer:
             <<: *OrdererDefaults
             OrdererType: etcdraft
+            BatchTimeout: 2s 
+            BatchSize:
+                MaxMessageCount: 500
+                AbsoluteMaxBytes: 10 MB
+                PreferredMaxBytes: 2 MB 
             Organizations:
                 - *SampleOrg
         Consortiums:
