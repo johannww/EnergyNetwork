@@ -22,6 +22,8 @@ public class AppPeriodicAuction {
 
     private static CommandLine cmd;
     private static Network network;
+    private static int failCount = 0;
+    private static int auctionCount = 0;
 
 
 
@@ -34,10 +36,19 @@ public class AppPeriodicAuction {
                 if (t.getName().equals("auctionPerformed")) {
                     try {
                         Thread.sleep(auctionInterval);
-                        Transaction transaction = contract.createTransaction("auction");
-                        transaction.submit();
                     } catch (Exception e) {
-                        System.out.println("Auction transaction failure: " + e.getMessage());
+                        System.out.println("Exception in timer");
+                    }
+                    Transaction transaction = contract.createTransaction("auction");
+                    try {
+                        auctionCount++;
+                        transaction.submit();
+                        System.out.printf("Auction transaction %d was SUCCESSFULLY submited to the orderer\n", auctionCount);
+                    } catch (Exception e) {
+                        failCount++;
+                        System.out.printf("Auction transaction %d commit failed for the %d time\n", auctionCount, failCount);
+                        System.out.println("The transaction will probably appear in following blocks");
+                        System.out.println(e.getMessage());
                     }
                 }
             }
@@ -96,7 +107,16 @@ public class AppPeriodicAuction {
             registerAuctionEventListener(contract, auctionInterval);
 
             Transaction transaction = contract.createTransaction("auction");
-            transaction.submit();
+            try {
+                auctionCount++;
+                transaction.submit();
+                System.out.printf("Auction transaction %d was SUCCESSFULLY submited to the orderer\n", auctionCount);
+            } catch (Exception e) {
+                failCount++;
+                System.out.printf("Auction transaction %d commit failed for the %d time\n", auctionCount, failCount);
+                System.out.println("The transaction will probably appear in following blocks");
+                System.out.println(e.getMessage());
+            }
             
             Thread.currentThread().join();
 
