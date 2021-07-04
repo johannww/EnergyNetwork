@@ -181,7 +181,19 @@ export MSYS_NO_PATHCONV=1
 
 for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
 
-    sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/sensor-jar-with-dependencies.jar -msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'"
+    sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/sensor-jar-with-dependencies.jar -msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit 0 --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity 0 --awsnetwork  > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'"
+    pidsSensor[$i]=$!
+
+done
+
+echo -e $blueback \## "Waiting for sensors declaring themselves ACTIVE"   $resetvid 
+for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
+    wait ${pidsSensor[$i]} && echo "Sensor from application$i declared themselves active"
+done
+
+for  ((i=1; i<=$applicationInstancesNumber; i+=1)); do
+
+    sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/sensor-jar-with-dependencies.jar -msp '${parsedTestCfg[sensors,msp]}' --basedir /EnergyNetwork --sensors '${parsedTestCfg[sensors,quantity]}' --unit '${parsedTestCfg[sensors,unit]}' --publishinterval '${parsedTestCfg[sensors,publishinterval]}' --publishquantity '${parsedTestCfg[sensors,publishquantity]}' --awsnetwork --committimeout 60 > /EnergyNetwork/test-reports/'$testNumber'/AppSensorForTest'$i'.out 2>&1'"'"
     pidsSensor[$i]=$!
 
     sshCmdBg ${hosts[application$i]} docker exec cli-applications bash -c "'"'java '$loggingFlag1' '$loggingFlag2' -jar target/seller-jar-with-dependencies.jar -msp '${parsedTestCfg[sellers,msp]}'  --basedir /EnergyNetwork --sellers '${parsedTestCfg[sellers,quantity]}' --publishinterval '${parsedTestCfg[sellers,publishinterval]}'  --publishquantity '${parsedTestCfg[sellers,publishquantity]}' --paymentcompanyurl '$paymentUrl' --awsnetwork > /EnergyNetwork/test-reports/'$testNumber'/AppSellerForTest'$i'.out 2>&1'"'"
