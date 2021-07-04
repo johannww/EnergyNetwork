@@ -1,14 +1,17 @@
-test-reports/
-java/
-bin/
-hyperledger/
-chaincodeJSON/
-generated-config/
-generated-config-aws/
-errors/
+/test-instances-max *
+/test-sensor-impact/
+/test-reports/
+/java/
+/bin/
+/hyperledger/
+/chaincodeJSON/
+/generated-config/
+/generated-config-aws/
+/generated-connection-tls/
+/errors/
 *.txt
-git.key
-testbash.sh
+/git.key
+/testbash.sh
 
 #
 # Visual Studio Code
