@@ -136,6 +136,7 @@ public class AppSensorForTest {
         int maxPublish = Integer.parseInt(cmd.getOptionValue("publishquantity"));
         String dockerPrefix = cmd.hasOption("dockernetwork") ? "docker-" : "";
         String awsPrefix = cmd.hasOption("awsnetwork") ? "aws-" : "";
+        Long commitTimeout = cmd.hasOption("committimeout") ? Long.parseLong(cmd.getOptionValue("committimeout")) : 2;
 
         // parsing sensor params
         ArgParserSensor sensorParser = new ArgParserSensor();
@@ -205,6 +206,8 @@ public class AppSensorForTest {
                                 System.out.println(String.format("Sensor %d probably already active: " + e.getMessage(),
                                         threadNum));
                             }
+
+                            //Thread.sleep(commitTimeout*1000);
 
                             // hold all testing threads here until all are ready to go
                             threadsBarrier.await();

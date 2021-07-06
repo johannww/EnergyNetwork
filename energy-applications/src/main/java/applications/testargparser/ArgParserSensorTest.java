@@ -60,6 +60,9 @@ public class ArgParserSensorTest {
         inAwsNetwork.setArgs(0);
         options.addOption(inAwsNetwork);
 
+        Option commitTimeout = new Option("committimeout", "committimeout", true, "Timeout in SECONS to wait for commit transaction");
+        options.addOption(commitTimeout);
+
         CommandLineParser parser = new DefaultParser();
         HelpFormatter formatter = new HelpFormatter();
         formatter.setLongOptSeparator("\n");
