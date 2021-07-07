@@ -884,7 +884,7 @@ docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e
 #
 # EXEMPLE  calling function "registerBuyBid" on ENERGY chaincode
 #
-#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e  CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/buyer1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"registerBuyBid","Args":["UFSC","tokentest1","UFSC", "15", "3", "solar"]}'
+#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e  CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/buyer1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"registerBuyBid","Args":["UFSC","tokentest1","UFSC", "15", "3", "solar"]}'
 
 #read -p "PRESS ENTER TO CONTINUE"
 
@@ -930,7 +930,7 @@ docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e
 #
 # EXEMPLE  calling function "registerMultipleBuyBids" on ENERGY chaincode
 #
-#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e  CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/buyer1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"registerMultipleBuyBids","Args":["100", "UFSC", "10", "20", "5", "15", "solar"]}'
+#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e  CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/buyer1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/idemixorg/buyer1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"registerMultipleBuyBids","Args":["100", "UFSC", "10", "20", "5", "15", "solar"]}'
 
 #sleep 5s
 
@@ -996,24 +996,24 @@ docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e
 #
 # EXEMPLE calling function query with idemix credentials
 #
-#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051  -c '{"function":"query","Args":["A"]}'
+#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051  -c '{"function":"query","Args":["A"]}'
 
 
 #
 # EXEMPLE calling function invoke with idemix credentials
 # Transfering 1 from A to B
 #
-#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"invoke","Args":["A", "B", "1"]}'
+#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer chaincode invoke -o orderer1-ufsc:7050 --channelID canal --name energy --tls --cafile /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem  --tlsRootCertFiles /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-ufsc:7051 --tlsRootCertFiles /tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem --peerAddresses peer1-parma:7051 -c '{"function":"invoke","Args":["A", "B", "1"]}'
 
 #
 # EXEMPLE calling peer channel fetch to see the blocks of the channel
 #
-#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg peer channel fetch --channelID canal newest
+#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli peer channel fetch --channelID canal newest
 
 #
 # EXEMPLE decoding the newest block fetched with the command above
 #
-#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli-idemixorg configtxlator proto_decode --type=common.Block --input=canal_newest.block
+#docker exec -e CORE_PEER_LOCALMSPID=IDEMIXORG -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/idemixorg/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/idemixorg/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli configtxlator proto_decode --type=common.Block --input=canal_newest.block
 
 #configtxgen -configPath ./generated-config -profile SampleMultiMSPRaft -outputBlock ./genesis.block -channelID syschannel
 #docker exec -e CORE_PEER_LOCALMSPID=UFSC -e CORE_PEER_ADDRESS=peer1-ufsc:7051 -e CORE_PEER_LOCALMSPTYPE=idemix -e CORE_PEER_MSPCONFIGPATH=/tmp/hyperledger/ufsc/admin1/msp -e CORE_PEER_TLS_ENABLED=true -e CORE_PEER_TLS_ROOTCERT_FILE=/tmp/hyperledger/ufsc/admin1/tls-msp/tlscacerts/tls-0-0-0-0-7052.pem cli configtxlator proto_decode --type=common.Block --input=./genesis.block
