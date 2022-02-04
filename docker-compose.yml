@@ -6,7 +6,7 @@ networks:
 services: 
     ca-tls:
         container_name: ca-tls
-        image: hyperledger/fabric-ca:latest
+        image: hyperledger/fabric-ca:1.4.9
         command: sh -c 'fabric-ca-server start -d -b tls-ca-admin:tls-ca-adminpw --port 7052'
         environment: 
             - FABRIC_CA_SERVER_HOME=/tmp/hyperledger/fabric-ca/crypto
@@ -23,7 +23,7 @@ services:
 
     rca:
         container_name: rca-${ORG_NAME}
-        image: hyperledger/fabric-ca:latest
+        image: hyperledger/fabric-ca:1.4.9
         command: bin/bash -c 'fabric-ca-server $INIT_OR_START -d -b rca-${ORG_NAME}-admin:rca-${ORG_NAME}-adminpw --port 7053'
         environment: 
             - FABRIC_CA_SERVER_HOME=/tmp/hyperledger/fabric-ca/crypto
