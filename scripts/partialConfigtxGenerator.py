@@ -92,5 +92,5 @@ with open("config-template/configtxTemplate.yaml", 'r') as templateYaml:
 
 #writing to "generated-config/configtx.yaml"
 os.makedirs(baseDir+"/generated-config", exist_ok=True)
-#with open("generated-config/configtx.yaml", 'w') as newYaml:
-  #newYaml.write(configtx)
+with open("generated-config/configtx.yaml", 'w') as newYaml:
+  newYaml.write(configtx)
