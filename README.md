@@ -83,6 +83,8 @@ organizations:
       seller-quantity: 1
       sensor-quantity: 1
       msptype: x509
+
+applications-quantity: 1
 ```
 
 The configurations above will cause the creation of x509 or Idemix credentials for each *admin*, *peer*, *orderer*, *buyer*, *seller*, and *sensor*.
@@ -103,4 +105,53 @@ All credentials are available in the `hyperledger/` folder.
 
 ## AWS deploy
 
-falar que usamos arm instances e que AMI eh gerada na instancia t4g.micro (que eh gratuita)
+Our network already has scripts to deploy and experiment on the AWS cloud infrastructure.
+
+### Generating an AMI
+
+We support ARM and x86 AMI generations with all dependencies to run our applications, orderers, peers, and experiments. Since AWS ARM instances are more efficient than x86, we opted to perform our experiments with them. The AMI includes our patched Hyperledger Fabric and Fabric SDK Java.
+
+```
+./scripts-aws/create-ami-arm.sh
+```
+
+### Deploying the network
+
+After the AMI creation, the network can be deployed by executing the AWS creation script. The flags "-o", "-p", and "-a" indicate the instance type of orderers, peers and applications, respectively.
+
+```
+./scripts-aws/automated-aws-creation.sh -o t4g.micro -p t4g.micro -a t4g.micro
+```
+
+### AWS Experiments
+
+    The experiments are configured in the **test-configuration.yaml** file. It is possible to set the number of simulated sensors, buyers, and sellers per application instance. The SmartData unit is set in the sensors' configuration (Read more in [Smart Data docs](https://epos.lisha.ufsc.br/IoT+Platform#SmartData)). Each entity (sensor, buyer or seller) publishes the total of **publishquantity** during the experiment. ** publishinterval** milliseconds space the transactions. At the end of the file, the auction period **auctioninterval** in milliseconds can be set, and the interval between two consecutive network auctions.
+
+```yaml
+#quantity per cli-application
+sensors:
+  quantity: 50
+  unit: 3834792229
+  #Interval in ms
+  publishinterval: 5000
+  publishquantity: 20
+  msp: UFSC
+
+sellers:
+  quantity: 50
+  #Interval in ms
+  publishinterval: 5000
+  publishquantity: 5
+  msp: UFSC
+
+
+buyers:
+  quantity: 1
+  #Interval in ms
+  publishinterval: 5000
+  publishquantity: 1
+  msp: IDEMIXORG
+
+#Interval in ms
+auctioninterval: 30000
+```
