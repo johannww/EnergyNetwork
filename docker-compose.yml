@@ -40,7 +40,7 @@ services:
 
     peer:
         container_name: peer${PEER_NUMBER}-${ORG_NAME}
-        image: hyperledger/fabric-peer:2.3.0
+        image: hyperledger/fabric-peer:2.5.0
         environment:
             - CORE_PEER_ID=peer${PEER_NUMBER}-${ORG_NAME}
             - CORE_PEER_LISTENADDRESS=0.0.0.0:7051
@@ -97,7 +97,7 @@ services:
 
     orderer:
         container_name: orderer${ORDERER_NUMBER}-${ORG_NAME}
-        image: hyperledger/fabric-orderer:2.3.0
+        image: hyperledger/fabric-orderer:2.5.0
         environment:
             - ORDERER_HOME=/tmp/hyperledger/orderer${ORDERER_NUMBER}
             - ORDERER_HOST=orderer${ORDERER_NUMBER}-${ORG_NAME}
@@ -128,7 +128,7 @@ services:
 
     cli:
         container_name: cli
-        image: hyperledger/fabric-tools:2.3.0
+        image: hyperledger/fabric-tools:2.5.0
         tty: true
         stdin_open: true
         dns_search: .
